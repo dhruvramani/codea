@@ -8,6 +8,7 @@ import argparse
 MODULE_DIR = os.path.dirname((os.path.abspath(__file__)))
 BASE_DIR = os.path.dirname(MODULE_DIR)
 DATA_DIR = "/content/drive/My Drive/Startup/data/nl_code_search"
+#DATA_DIR = "/scratch/sceatch2/dhruvramani/codesearch_data"
 
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 

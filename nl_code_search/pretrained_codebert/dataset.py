@@ -3,7 +3,10 @@ import os
 import sys
 import json
 import numpy as np
+import faulthandler
 from more_itertools import chunked
+
+faulthandler.enable()
 
 import torch
 import transformers
@@ -21,7 +24,7 @@ class PretrainedCodeBERTDataModule(pl.LightningDataModule):
 
         self.processor = CodesearchProcessor()
         self.files = {'train' : 'train_top10_concat.tsv', 'dev' : 'shared_task_dev_top10_concat.tsv', 'test' : 'shared_task_dev_top10_concat.tsv'}
-        self.get_examples = {'train', self.processor.get_train_examples, 'dev' : self.processor.get_dev_examples, 'test' : self.processor.get_test_examples}
+        self.get_examples = {'train' : self.processor.get_train_examples, 'dev' : self.processor.get_dev_examples, 'test' : self.processor.get_test_examples}
 
     def setup(self, stage=None):
         if stage == 'fit' or stage == None:
@@ -276,6 +279,7 @@ def download_dataset(config):
     dataset_path = '/'.join(config.data_path.split('/')[:-1])
     dir_path = '{}/codesearch_data'.format(dataset_path)
     dataset_path = '{}/codesearch_data.zip'.format(dataset_path)
+    print("File ", dataset_path, "\nStarting download")
     gdown.download(url, dataset_path)
 
     with zipfile.ZipFile(dataset_path ,"r") as zip_ref:
@@ -331,6 +335,7 @@ if __name__ == '__main__':
 
     from config import get_config
     config = get_config()
+    print("Got config")
 
-    download_dataset(config)
-    preprocess_test_data(config)
+    #download_dataset(config)
+    #preprocess_test_data(config)
