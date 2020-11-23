@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import pathlib
+import datetime
 import argparse
 
 MODULE_DIR = os.path.dirname((os.path.abspath(__file__)))
@@ -11,33 +12,43 @@ DATA_DIR = "/content/drive/My Drive/Startup/data/nl_code_search"
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
 def get_config():
-    parser = argparse.ArgumentParser("NL Code Search",
+    parser = argparse.ArgumentParser("NL Code Search - Model independent config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
+    parser.add_argument('--model', type=str, default='pretrained_codebert', choices=['pretrained_codebert', ])
+    parser.add_argument('--prog_lang', type=str, default='python', choices=['python', 'java', 'javascript'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
-    parser.add_argument('--model', type=str, default='x', choices=['x', 'y'])
 
-    parser.add_argument('--resume', type=str2bool, default=False)
-    parser.add_argument('--is_train', type=str2bool, default=False)
-    parser.add_argument('--seed', '-s', type=int, default=0)
+    parser.add_argument('--resume_from_checkpoint', type=str, default=None)
 
-    parser.add_argument('--num_workers', type=int, default=1)
-    parser.add_argument('--save_graphs', type=str2bool, default=False)
-    parser.add_argument('--save_interval_steps', type=int, default=100)
+    parser.add_argument('--tpu_cores', type=int, default=None)
+    parser.add_argument('--gpus', type=int, default=-1)
+    parser.add_argument('--auto_select_gpus', type=str2bool, default=True)
 
-    parser.add_argument('--data_path', type=str, default=os.path.join(DATA_DIR, 'code_search_net/'))
+    # NOTE - Trainer args : not used yet - but very handy, use later.
+    parser.add_argument('--auto_scale_batch_size', type=str, default='binsearch')
+    parser.add_argument('--auto_lr_find', type=str2bool, default=False)
+
+    # NOTE - See the modifications to paths after parsing below. 
+    parser.add_argument('--data_path', type=str, default=os.path.join(DATA_DIR, 'code_search_net/data/'))
+    parser.add_argument('--cache_path', type=str, default=os.path.join(DATA_DIR, 'code_search_net/cache/'))
     parser.add_argument('--models_save_path', type=str, default=os.path.join(MODULE_DIR, 'save/models/'))
     parser.add_argument('--tensorboard_path', type=str, default=os.path.join(MODULE_DIR, 'save/tensorboard/'))
-    
-    parser.add_argument('--learning_rate', type=float, default=3e-4)
+
+    parser.add_argument('--n_epochs', type=int, default=3)    
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--max_epochs', type=int, default=25) #50
-    parser.add_argument('--max_sequence_length', type=int, default=32)
+    parser.add_argument('--warmup_steps', type=int, default=0)
+    parser.add_argument('--max_seq_length', type=int, default=128)
 
     config = parser.parse_args()
     
-    config.models_save_path = os.path.join(config.models_save_path, '{}_{}/'.format(config.model, config.exp_name)) 
-    config.tensorboard_path = os.path.join(config.tensorboard_path, '{}_{}/'.format(config.model, config.exp_name)) 
+    config.data_path = os.path.join(config.data_path, '{}/'.format(config.prog_lang))
+    config.cache_path = os.path.join(config.cache_path, '{}/'.format(config.prog_lang))
+    config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/'.format(config.model, config.prog_lang, config.exp_name)) 
+    config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}/'.format(config.model, config.prog_lang)) 
+
+    create_dir(config.data_path, recreate=False)
+    create_dir(config.cache_path, recreate=False)
 
     recreate = config.is_train and not config.resume
     create_dir(config.models_save_path, recreate=recreate)
@@ -51,8 +62,13 @@ def str2bool(string):
 def create_dir(path, recreate=False):
     if not os.path.isdir(path):
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-        print("=> CREATED : {}.".format(path))
-    else recreate:
+        print("# CREATED : {}.".format(path))
+    elif recreate:
         shutil.rmtree(path)
         os.makedirs(path)
-        print("=> RE-CREATED : {}.".format(path))
+        print("# RE-CREATED : {}.".format(path))
+
+if __name__ == '__main__':
+    print("=> Testing config.py")
+    config = get_config()
+    print(config.models_save_path)
