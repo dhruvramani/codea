@@ -7,7 +7,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from config import get_config
 
-def select_model(config):
+def select_model(config, ttype='fit'):
     model, datamodule = None, None
     if config.model == 'pretrained_codebert':
         from pretrained_codebert.models import PretrainedCodeBERT
@@ -15,6 +15,7 @@ def select_model(config):
 
         tokenizer = transformers.AutoTokenizer.from_pretrained('microsoft/codebert-base')
         datamodule = PretrainedCodeBERTDataModule(config, tokenizer)
+        datamodule.setup(stage=ttype)
         total_steps = len(datamodule.train_dataloader(batch_size=config.batch_size)) // config.n_epochs
 
         model = PretrainedCodeBERT(config, total_steps, tokenizer=tokenizer)

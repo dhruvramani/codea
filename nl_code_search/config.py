@@ -36,10 +36,10 @@ def get_config():
     parser.add_argument('--models_save_path', type=str, default=os.path.join(MODULE_DIR, 'save/models/'))
     parser.add_argument('--tensorboard_path', type=str, default=os.path.join(MODULE_DIR, 'save/tensorboard/'))
 
-    parser.add_argument('--n_epochs', type=int, default=3)    
+    parser.add_argument('--n_epochs', type=int, default=8)    
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--warmup_steps', type=int, default=0)
-    parser.add_argument('--max_seq_length', type=int, default=128)
+    parser.add_argument('--max_seq_length', type=int, default=200)
 
     config = parser.parse_args()
     

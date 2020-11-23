@@ -50,11 +50,11 @@ class PretrainedCodeBERTDataModule(pl.LightningDataModule):
         file_name = self.files[ttype].split('.')[0]
         cached_features_file = os.path.join(self.config.cache_path, 'cached_{}_{}_{}'.format(ttype, file_name, self.config.max_seq_length))
 
-        try:
+        if os.path.isfile(cached_features_file):
             features = torch.load(cached_features_file)
             if ttype == 'test':
                 examples, instances = self.processor.get_test_examples(self.config.data_path, self.files['test'])
-        except:
+        else:
             label_list = self.processor.get_labels()
             examples = self.get_examples[ttype](self.config.data_path, self.files[ttype])
             if ttype == 'test':
@@ -269,7 +269,7 @@ class InputFeatures(object):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
-        self.label_id = label_i
+        self.label_id = label_id
 
 def download_dataset(config):
     import gdown

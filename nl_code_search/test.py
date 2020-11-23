@@ -13,5 +13,5 @@ def test(config, model, datamodule):
 
 if __name__ == '__main__':
     config = get_config()
-    model, datamodule = select_model(config)
+    model, datamodule = select_model(config, ttype='test')
     test(config, model, datamodule)
