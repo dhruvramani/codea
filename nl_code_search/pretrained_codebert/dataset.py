@@ -23,7 +23,7 @@ class PretrainedCodeBERTDataModule(pl.LightningDataModule):
         self.tokenizer = tokenizer
 
         self.processor = CodesearchProcessor()
-        self.files = {'train' : 'train_top10_concat.tsv', 'dev' : 'shared_task_dev_top10_concat.tsv', 'test' : 'shared_task_dev_top10_concat.tsv'}
+        self.files = {'train' : 'train.txt', 'dev' : 'valid.txt', 'test' : 'test/batch_0.txt'}
         self.get_examples = {'train' : self.processor.get_train_examples, 'dev' : self.processor.get_dev_examples, 'test' : self.processor.get_test_examples}
 
     def setup(self, stage=None):
@@ -280,10 +280,12 @@ def download_dataset(config):
     dir_path = '{}/codesearch_data'.format(dataset_path)
     dataset_path = '{}/codesearch_data.zip'.format(dataset_path)
     print("File ", dataset_path, "\nStarting download")
-    gdown.download(url, dataset_path)
+    gdown.download(url, dataset_path, quiet=False)
 
     with zipfile.ZipFile(dataset_path ,"r") as zip_ref:
         zip_ref.extractall(dir_path)
+    
+    print("Downloaded.")
 
 def preprocess_test_data(config, test_batch_size=1000):
 
@@ -335,7 +337,6 @@ if __name__ == '__main__':
 
     from config import get_config
     config = get_config()
-    print("Got config")
 
     #download_dataset(config)
-    #preprocess_test_data(config)
+    preprocess_test_data(config)

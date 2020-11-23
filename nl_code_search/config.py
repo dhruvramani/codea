@@ -31,8 +31,8 @@ def get_config():
     parser.add_argument('--auto_lr_find', type=str2bool, default=False)
 
     # NOTE - See the modifications to paths after parsing below. 
-    parser.add_argument('--data_path', type=str, default=os.path.join(DATA_DIR, 'code_search_net/data/'))
-    parser.add_argument('--cache_path', type=str, default=os.path.join(DATA_DIR, 'code_search_net/cache/'))
+    parser.add_argument('--data_path', type=str, default=DATA_DIR)
+    parser.add_argument('--cache_path', type=str, default=DATA_DIR)
     parser.add_argument('--models_save_path', type=str, default=os.path.join(MODULE_DIR, 'save/models/'))
     parser.add_argument('--tensorboard_path', type=str, default=os.path.join(MODULE_DIR, 'save/tensorboard/'))
 
@@ -43,15 +43,15 @@ def get_config():
 
     config = parser.parse_args()
     
-    config.data_path = os.path.join(config.data_path, '{}/'.format(config.prog_lang))
-    config.cache_path = os.path.join(config.cache_path, '{}/'.format(config.prog_lang))
+    config.data_path = os.path.join(config.data_path, '{}/data/{}/'.format(config.model, config.prog_lang))
+    config.cache_path = os.path.join(config.cache_path, '{}/cache/{}/'.format(config.model, config.prog_lang))
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/'.format(config.model, config.prog_lang, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}/'.format(config.model, config.prog_lang)) 
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)
 
-    recreate = config.is_train and not config.resume
+    recreate = False #config.is_train and not config.resume
     create_dir(config.models_save_path, recreate=recreate)
     create_dir(config.tensorboard_path, recreate=recreate)
 
