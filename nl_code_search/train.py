@@ -13,11 +13,13 @@ def select_model(config, ttype='fit'):
         from pretrained_codebert.models import PretrainedCodeBERT
         from pretrained_codebert.dataset import PretrainedCodeBERTDataModule
 
+        print("Creating datamodule")
         tokenizer = transformers.AutoTokenizer.from_pretrained('microsoft/codebert-base')
         datamodule = PretrainedCodeBERTDataModule(config, tokenizer)
         datamodule.setup(stage=ttype)
         total_steps = len(datamodule.train_dataloader(batch_size=config.batch_size)) // config.n_epochs
 
+        print("Creating model")
         model = PretrainedCodeBERT(config, total_steps, tokenizer=tokenizer)
 
     return model, datamodule

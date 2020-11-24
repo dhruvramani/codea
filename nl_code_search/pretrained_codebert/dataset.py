@@ -49,12 +49,19 @@ class PretrainedCodeBERTDataModule(pl.LightningDataModule):
     def get_dataset(self, ttype='train'):
         file_name = self.files[ttype].split('.')[0]
         cached_features_file = os.path.join(self.config.cache_path, 'cached_{}_{}_{}'.format(ttype, file_name, self.config.max_seq_length))
-
-        if os.path.isfile(cached_features_file):
-            features = torch.load(cached_features_file)
-            if ttype == 'test':
-                examples, instances = self.processor.get_test_examples(self.config.data_path, self.files['test'])
-        else:
+        use_cached = os.path.isfile(cached_features_file)
+        
+        if use_cached:
+            try :
+                print("Loading Cached file {}".format(cached_features_file))
+                features = torch.load(cached_features_file)
+                if ttype == 'test':
+                    examples, instances = self.processor.get_test_examples(self.config.data_path, self.files['test'])
+            except:
+                use_cached = False
+        
+        if not use_cached:
+            print("Cached file not present, creating dataset.")
             label_list = self.processor.get_labels()
             examples = self.get_examples[ttype](self.config.data_path, self.files[ttype])
             if ttype == 'test':
