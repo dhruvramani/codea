@@ -3,10 +3,7 @@ import os
 import sys
 import json
 import numpy as np
-import faulthandler
 from more_itertools import chunked
-
-faulthandler.enable()
 
 import torch
 import transformers
@@ -16,9 +13,10 @@ from torch.utils.data import DataLoader, TensorDataset
 # Copy code used in CodeBert. Then, download code_search_net dataset manually, write scripts for training self.tokenizers, balancing data and classes for code-search etc.
 # Tokenizer lib - https://colab.research.google.com/github/huggingface/transformers/blob/master/notebooks/01-training-self.tokenizers.ipynb
 
-class PretrainedCodeBERTDataModule(pl.LightningDataModule):
+class CodeSearchBalancedDM(pl.LightningDataModule):
     def __init__(self, config, tokenizer):
-        super(PretrainedCodeBERTDataModule, self).__init__()
+        ''' CodeSearchNet data balanced for classification - from the CodeBERT repo. '''
+        super(CodeSearchBalancedDM, self).__init__()
         self.config = config
         self.tokenizer = tokenizer
 

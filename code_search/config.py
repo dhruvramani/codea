@@ -33,8 +33,8 @@ def get_config():
     # NOTE - See the modifications to paths after parsing below. 
     parser.add_argument('--data_path', type=str, default=DATA_DIR)
     parser.add_argument('--cache_path', type=str, default=DATA_DIR)
-    parser.add_argument('--models_save_path', type=str, default=os.path.join(MODULE_DIR, 'save/models/'))
-    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(MODULE_DIR, 'save/tensorboard/'))
+    parser.add_argument('--models_save_path', type=str, default=os.path.join(BASE_DIR, 'save/code_search/models/'))
+    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(BASE_DIR, 'save/code_search/tensorboard/'))
 
     parser.add_argument('--n_epochs', type=int, default=8)    
     parser.add_argument('--batch_size', type=int, default=32)
@@ -44,9 +44,9 @@ def get_config():
     config = parser.parse_args()
     
     config.data_path = os.path.join(config.data_path, '{}/data/{}/'.format(config.model, config.prog_lang))
-    config.cache_path = os.path.join(config.cache_path, '{}/cache/{}/'.format(config.model, config.prog_lang))
+    config.cache_path = os.path.join(config.data_path, '{}/cache/{}/'.format(config.model, config.prog_lang))
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/'.format(config.model, config.prog_lang, config.exp_name)) 
-    config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}/'.format(config.model, config.prog_lang)) 
+    config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/'.format(config.model, config.prog_lang, config.exp_name)) 
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)
