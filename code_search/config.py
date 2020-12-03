@@ -50,10 +50,8 @@ def get_config():
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)
-
-    recreate = False #config.is_train and not config.resume
-    create_dir(config.models_save_path, recreate=recreate)
-    create_dir(config.tensorboard_path, recreate=recreate)
+    create_dir(config.models_save_path, recreate=False)
+    create_dir(config.tensorboard_path, recreate=False)
 
     return config
 

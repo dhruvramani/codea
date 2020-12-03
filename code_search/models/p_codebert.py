@@ -4,27 +4,19 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 from transformers import RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification
 
-from config import get_config
-
 class PretrainedCodeBERT(pl.LightningModule):
     def __init__(self, config, total_steps, model_config=None, tokenizer=None):
         super(PretrainedCodeBERT, self).__init__()
 
-        # total_steps calculated in train.py - needed for scheduler.
-
         self.config = config
         self.num_labels = 2
-        self.total_steps = total_steps
+        self.total_steps = total_steps # total_steps calculated in train.py - needed for scheduler.
+        self.model_config = RobertaConfig.from_pretrained('microsoft/codebert-base', num_labels=self.num_labels, finetuning_task='codesearch') \ 
+                            if model_config is None else model_config
 
-        # IK, could've used ternary op - but code wasn't clean enough w/ that.
-        self.model_config = model_config
-        if self.model_config is None:
-            self.model_config = RobertaConfig.from_pretrained('microsoft/codebert-base', num_labels=self.num_labels, finetuning_task='codesearch')
+        self.tokenizer = RobertaTokenizer.from_pretrained('microsoft/codebert-base') if tokenizer is None \
+                         else tokenizer
 
-        self.tokenizer = tokenizer
-        if self.tokenizer is None:
-            self.tokenizer = RobertaTokenizer.from_pretrained('microsoft/codebert-base')
-        
         self.model = RobertaForSequenceClassification.from_pretrained('microsoft/codebert-base', config=self.model_config)
 
         self.val_acc = pl.metrics.Accuracy()

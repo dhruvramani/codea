@@ -1,12 +1,11 @@
-import gzip
 import os
 import sys
+import gzip
 import json
 import numpy as np
 from more_itertools import chunked
 
 import torch
-import transformers
 import pytorch_lightning as pl 
 from torch.utils.data import DataLoader, TensorDataset
 
