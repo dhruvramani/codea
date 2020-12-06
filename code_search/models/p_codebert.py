@@ -19,10 +19,8 @@ class PretrainedCodeBERT(pl.LightningModule):
 
         self.model = RobertaForSequenceClassification.from_pretrained('microsoft/codebert-base', config=self.model_config)
 
-        self.val_acc = pl.metrics.Accuracy()
-        self.val_f1 = pl.metrics.Fbeta(num_classes=self.num_labels, beta=1.0)
-        self.test_acc = pl.metrics.Accuracy()
-        self.test_f1 = pl.metrics.Fbeta(num_classes=self.num_labels, beta=1.0)
+        self.acc = pl.metrics.Accuracy()
+        self.f1 = pl.metrics.Fbeta(num_classes=self.num_labels, beta=1.0)
                 
     def forward(self, nl_text, code):
         encoded_input = self.tokenizer(nl_text, code)
@@ -30,43 +28,44 @@ class PretrainedCodeBERT(pl.LightningModule):
         results = torch.softmax(outputs.logits, dim=1).tolist()
         return results
 
+    def _step(self, batch, batch_idx):
+        inputs = {'input_ids': batch[0],
+          'attention_mask': batch[1],
+          'token_type_ids': None, # RoBERTa doesn’t have token_type_ids
+          'labels': batch[3]
+        }
+        outputs = self.model(**inputs, return_dict=True)
+
+        return outputs        
+
     def training_step(self, train_batch, batch_idx):
-        inputs = {'input_ids': train_batch[0],
-                  'attention_mask': train_batch[1],
-                  'token_type_ids': None, # RoBERTa doesn’t have token_type_ids
-                  'labels': train_batch[3]
-                }
-        outputs = self.model(**inputs)
-        loss = outputs[0]
+        outputs = self._step(train_batch, batch_idx)
+        loss = outputs['loss']
+
         self.log('training_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        inputs = {'input_ids': val_batch[0],
-                  'attention_mask': val_batch[1],
-                  'token_type_ids': None, # RoBERTa doesn’t have token_type_ids
-                  'labels': val_batch[3]
-                }
-        outputs = self.model(**inputs)
-        val_loss, logits = outputs[:2]
+        outputs = self._step(val_batch, batch_idx)
+        val_loss, logits = outputs['loss'], outputs['logits']
 
-        acc = self.val_acc(logits, inputs['labels'])
-        f1 = self.val_f1(logits, inputs['labels'])
-        self.log_dict({'val_loss' : val_loss, 'val_acc' : acc, 'val_f1' : f1})
+        labels = val_batch[3]
+        score = self.compute_metrics(logits, labels)
+        score = {'val_' + key : score[key] for key in score}
+
+        self.log('val_loss', val_loss)
+        self.log_dict(score)
         return val_loss
 
     def test_step(self, test_batch, batch_idx):
-        inputs = {'input_ids': test_batch[0],
-                  'attention_mask': test_batch[1],
-                  'token_type_ids': None, # RoBERTa doesn’t have token_type_ids
-                  'labels': test_batch[3]
-                }
-        outputs = self.model(**inputs)
-        logits = outputs[1]
+        outputs = self._step(test_batch, batch_idx)
+        logits = outputs['logits']
         
-        acc = self.test_acc(logits, inputs['labels'])
-        f1 = self.test_f1(logits, inputs['labels'])
-        self.log_dict({'test_acc' : acc, 'test_f1' : f1})
+        labels = test_batch[3]
+        score = self.compute_metrics(logits, labels)
+        score = {'test_' + key : score[key] for key in score}
+
+        self.log_dict(score)
 
     def configure_optimizers(self, learning_rate=1e-5, eps=1e-8, weight_decay=0.0):
         no_decay = ['bias', 'LayerNorm.weight']
@@ -81,3 +80,9 @@ class PretrainedCodeBERT(pl.LightningModule):
     def backward(self, loss, optimizer, optimizer_idx, max_grad_norm=1.0):
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+
+    def compute_metrics(self, logits, labels):
+        acc = self.acc(logits, labels)
+        f1 = self.f1(logits, labels)
+
+        return {'acc' : acc, 'f1' : f1}

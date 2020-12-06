@@ -31,36 +31,37 @@ class GPT2Code(pl.LightningModule):
         outputs = [self.tokenizer.decode(gen_op, skip_special_tokens=True) for gen_op in gen_outputs]
         return outputs
 
-    def training_step(self, train_batch, batch_idx):
-        input_ids = train_batch['input_ids']
-        attention_mask = train_batch['attention_mask']
+    def _step(self, batch, batch_idx):
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
 
         outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, \
             labels=input_ids, return_dict=True) # See doc. for more info on Labels.
+
+        return outputs
+
+    def training_step(self, train_batch, batch_idx):
+        outputs = self._step(train_batch, batch_idx)
         loss = outputs['loss']
+        
         self.log('training_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        input_ids = train_batch['input_ids']
-        attention_mask = train_batch['attention_mask']
+        outputs = self._step(val_batch, batch_idx)
 
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, \
-            labels=input_ids, return_dict=True) 
         loss, logits = outputs['loss'], outputs['logits']
-        score = self.compute_metrics(logits, input_ids)
+        score = self.compute_metrics(logits, val_batch['input_ids'])
         score = {"val_" + key : score[key] for key in score}
         
         self.log('val_loss', loss)
         self.log_dict(score)
 
     def test_step(self, test_batch, batch_idx):
-        input_ids = train_batch['input_ids']
-        attention_mask = train_batch['attention_mask']
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, return_dict=True)
-        
-        score = self.compute_metrics(outputs['logits'], input_ids)
+        outputs = self._step(test_batch, batch_idx)
+        score = self.compute_metrics(outputs['logits'], test_batch['input_ids'])
         score = {"test_" + key : score[key] for key in score}
+
         self.log_dict(score)
 
     def compute_metrics(pred_ids, label_ids):

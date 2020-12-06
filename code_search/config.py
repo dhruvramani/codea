@@ -13,7 +13,7 @@ DATA_DIR = "/content/drive/My Drive/Startup/data/nl_code_search"
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
 def get_config():
-    parser = argparse.ArgumentParser("NL Code Search - Model independent config.",
+    parser = argparse.ArgumentParser("NL Code Search - Model Independent Config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
     parser.add_argument('--model', type=str, default='pretrained_codebert', choices=['pretrained_codebert', ])

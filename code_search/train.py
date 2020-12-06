@@ -9,20 +9,24 @@ from config import get_config, BASE_DIR
 
 sys.path.append(BASE_DIR)
 
+def create_pretained_codebert(config, ttype):
+    from models import PretrainedCodeBERT
+    from datasets import CodeSearchBalancedDM
+
+    tokenizer = transformers.AutoTokenizer.from_pretrained('microsoft/codebert-base')
+
+    datamodule = CodeSearchBalancedDM(config, tokenizer)
+    datamodule.setup(stage=ttype)
+    total_steps = len(datamodule.train_dataloader(batch_size=config.batch_size)) // config.n_epochs
+
+    model = PretrainedCodeBERT(config, total_steps, tokenizer=tokenizer)
+
+    return model, datamodule
+
 def select_model(config, ttype='fit'):
     model, datamodule = None, None
     if config.model == 'pretrained_codebert':
-        from models import PretrainedCodeBERT
-        from datasets import CodeSearchBalancedDM
-
-        print("Creating datamodule")
-        tokenizer = transformers.AutoTokenizer.from_pretrained('microsoft/codebert-base')
-        datamodule = CodeSearchBalancedDM(config, tokenizer)
-        datamodule.setup(stage=ttype)
-        total_steps = len(datamodule.train_dataloader(batch_size=config.batch_size)) // config.n_epochs
-
-        print("Creating model")
-        model = PretrainedCodeBERT(config, total_steps, tokenizer=tokenizer)
+        model, datamodule = create_pretained_codebert(config, ttype)
 
     return model, datamodule
 
