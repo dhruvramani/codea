@@ -48,7 +48,7 @@ class PretrainDataCollate():
 class PretrainDataModule(pl.LightningDataModule):
     def __init__(self, config, dataset, tokenizer, pretrain_tasks=['mlm']):
         ''' - dataset : A torch Dataset object which returns tokenized string '''
-        super(PretrainDataModule, self).__init__()
+        super().__init__()
 
         self.config = config
         self.dataset = dataset
