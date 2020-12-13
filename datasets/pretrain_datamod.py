@@ -3,7 +3,6 @@ import numpy as np
 import transformers
 import pytorch_lightning as pl 
 
-
 from torch.utils.data import DataLoader, Dataset
 from transformers import (
     DataCollatorWithPadding
@@ -46,8 +45,6 @@ class PretrainDataCollate():
         task = self.select_task()
         return task(batch)
 
-# TODO - Have to write padding - might be there in tokenizer lib itself.
-
 class PretrainDataModule(pl.LightningDataModule):
     def __init__(self, config, dataset, tokenizer, pretrain_tasks=['mlm']):
         ''' - dataset : A torch Dataset object which returns tokenized string '''
@@ -57,5 +54,5 @@ class PretrainDataModule(pl.LightningDataModule):
         self.dataset = dataset
         self.collator = PretrainDataCollate(config, tokenizer, pretrain_tasks)
 
-    def train_dataloader(self, batch_size=None):
+    def train_dataloader(self, batch_size=None): # NOTE fix batch_size ?
         return DataLoader(self.dataset, batch_size=batch_size, collate_fn=self.collator.collate_fn)
