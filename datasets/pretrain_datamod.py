@@ -25,7 +25,7 @@ class PretrainDataCollate():
                       'wm' : {'count': 0, 'max_steps': 10}}
 
         assert set(pretrain_tasks).issubset(tasks.keys())
-        self.pretrain_tasks = [tasks[key](self.tokenizer) for key in pretrain_tasks]
+        self.pretrain_tasks = {key : tasks[key](self.tokenizer) for key in pretrain_tasks}
         self.task_stats = {key: task_table[key] for key in pretrain_tasks}
 
     def select_task(self):
