@@ -29,7 +29,8 @@ class PretrainDataCollate():
         self.task_stats = {key: task_table[key] for key in pretrain_tasks}
 
     def select_task(self):
-        task_order = list(self.task_stats.keys()).sort()        
+        task_order = list(self.task_stats.keys())
+        task_order.sort()    
         for idx, key in enumerate(task_order):
             if idx == len(task_order) - 1 and self.task_stats[key]['count'] == self.task_stats[key]['max_steps'] - 1:
                 for count_key in enumerate(task_order):
