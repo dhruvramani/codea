@@ -38,6 +38,7 @@ class BartCode(pl.LightningModule):
 
         # NOTE : Dataset format - {'code' : {'input_ids':, 'attn_mask':, },
         #                          'summary':{'input_ids':, 'attn_mask': }}
+        # NOTE : See if the above is possible
 
         inputs, targets = batch['code'], batch['summary']
         input_ids, attention_mask = inputs['input_ids'], inputs['attention_mask']

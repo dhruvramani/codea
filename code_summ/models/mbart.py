@@ -36,14 +36,12 @@ class MBartCode(pl.LightningModule):
         self.metric1 = load_metric('bleu')
         self.metric2 = load_metric('rouge')
 
-
     def switch_model(self, choice):
         switches = {'eng' : self.eng_bart, 'code' : self.code_bart, 'multi' : self.multi_bart}
         assert choice.lower() is in switches.keys()
 
         self.current_train = choice.lower()
         self.current_model = switches[self.current_train]
-
 
     def forward(self, input_code, num_beams=5, max_length=50):
         input_id = self.tokenizer(input_code)
