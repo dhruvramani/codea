@@ -33,7 +33,7 @@ class PretrainDataCollate():
         task_order.sort()    
         for idx, key in enumerate(task_order):
             if idx == len(task_order) - 1 and self.task_stats[key]['count'] == self.task_stats[key]['max_steps'] - 1:
-                for count_key in enumerate(task_order):
+                for count_key in task_order:
                     self.task_stats[count_key]['count'] = 0
                 return self.pretrain_tasks[key] 
             
