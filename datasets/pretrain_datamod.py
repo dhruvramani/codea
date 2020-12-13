@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 
 from torch.utils.data import DataLoader, Dataset
 from transformers import (
-    DataCollatorWithPadding
+    DataCollatorWithPadding,
     DataCollatorForLanguageModeling,
     DataCollatorForWholeWordMask,
     DataCollatorForSOP,
