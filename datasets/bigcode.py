@@ -41,6 +41,7 @@ class BigCodeDataModule(pl.LightningDataModule):
         #     self.test_dataset = # TODO (ttype='test')
 
 def download_dataset(config):
+    print("=> Downloading dataset")
     c_path = os.path.join(config.data_path, '{}-corpus.tar.gz'.format(config.prog_lang))
     d_path = os.path.join(config.data_path, '{}-corpus/'.format(config.prog_lang))
     
@@ -53,4 +54,5 @@ def download_dataset(config):
         shutil.move(os.path.join(d_path, file), os.path.join(config.data_path, file))
 
     os.rmdir(d_path)
+    print("=> Downloading done.")
     #os.remove(c_path)

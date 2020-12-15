@@ -21,7 +21,7 @@ def get_config():
     parser.add_argument('--dataset', type=str.lower, default='codesearch_bal', choices=['codesearch_bal', ])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
-    parser.add_argument('--resume_from_checkpoint', type=str, default=None)
+    parser.add_argument('--resume_from_checkpoint', type=str, default='')
 
     # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)
