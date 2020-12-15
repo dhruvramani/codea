@@ -1,1 +1,1 @@
-from p_codebert import PretrainedCodeBERT
+from models.p_codebert import PretrainedCodeBERT

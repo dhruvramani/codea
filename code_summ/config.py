@@ -7,8 +7,8 @@ import argparse
 
 MODULE_DIR = os.path.dirname((os.path.abspath(__file__)))
 BASE_DIR = os.path.dirname(MODULE_DIR)
-DATA_DIR = "/content/drive/My Drive/Startup/data/code_summ"
-#DATA_DIR = "/scratch/sceatch2/dhruvramani/codesumm_data"
+DATA_DIR = "/content/drive/My Drive/Startup/data/"
+#DATA_DIR = "/scratch/sceatch2/dhruvramani/code_data"
 
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
@@ -16,23 +16,25 @@ def get_config():
     parser = argparse.ArgumentParser("Code Summarization - Model Independent Config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
-    parser.add_argument('--model', type=str, default='bart', choices=['bart', 'mbart', 't5'])
-    parser.add_argument('--prog_lang', type=str, default='python', choices=['python', 'java', 'javascript'])
+    parser.add_argument('--model', type=str.lower, default='bart', choices=['bart', 'mbart'])
+    parser.add_argument('--prog_lang', type=str.lower, default='python', choices=['python', 'java', 'javascript', 'c'])
+    parser.add_argument('--dataset', type=str.lower, default='-', choices=['-']) # TODO
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
     parser.add_argument('--resume_from_checkpoint', type=str, default=None)
 
+    # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)
     parser.add_argument('--gpus', type=int, default=-1)
     parser.add_argument('--auto_select_gpus', type=str2bool, default=True)
 
-    # NOTE - Trainer args : not used yet - but very handy, use later.
+    # NOTE - Lightning trainer args - not used yet - very handy tho, use later.
     parser.add_argument('--auto_scale_batch_size', type=str, default='binsearch')
     parser.add_argument('--auto_lr_find', type=str2bool, default=False)
 
-    # NOTE - See the modifications to paths after parsing below. 
-    parser.add_argument('--data_path', type=str, default=DATA_DIR)
-    parser.add_argument('--cache_path', type=str, default=DATA_DIR)
+    # NOTE - See the modifications to paths below.
+    parser.add_argument('--data_path', type=str, default=os.path.join(DATA_DIR, 'data/'))
+    parser.add_argument('--cache_path', type=str, default=os.path.join(DATA_DIR, 'cache/'))
     parser.add_argument('--models_save_path', type=str, default=os.path.join(BASE_DIR, 'save/code_summ/models/'))
     parser.add_argument('--tensorboard_path', type=str, default=os.path.join(BASE_DIR, 'save/code_summ/tensorboard/'))
 
@@ -42,11 +44,11 @@ def get_config():
     parser.add_argument('--max_seq_length', type=int, default=200)
 
     config = parser.parse_args()
-    
-    config.data_path = os.path.join(config.data_path, '{}/data/{}/'.format(config.model, config.prog_lang))
-    config.cache_path = os.path.join(config.data_path, '{}/cache/{}/'.format(config.model, config.prog_lang))
-    config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/'.format(config.model, config.prog_lang, config.exp_name)) 
-    config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/'.format(config.model, config.prog_lang, config.exp_name)) 
+    config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+    config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+    config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
+    config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
+    config.resume_from_checkpoint = os.path.join(config.models_save_path, config.resume_from_checkpoint)
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)

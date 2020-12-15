@@ -7,17 +7,19 @@ from more_itertools import chunked
 
 import torch
 import pytorch_lightning as pl 
+
 from torch.utils.data import DataLoader, TensorDataset
+from transformers import AutoTokenizer
 
 # Copy code used in CodeBert. Then, download code_search_net dataset manually, write scripts for training self.tokenizers, balancing data and classes for code-search etc.
 # Tokenizer lib - https://colab.research.google.com/github/huggingface/transformers/blob/master/notebooks/01-training-self.tokenizers.ipynb
 
-class CodeSearchBalancedDM(pl.LightningDataModule):
-    def __init__(self, config, tokenizer):
+class CodeSearchBalancedDataModule(pl.LightningDataModule):
+    def __init__(self, config):
         ''' CodeSearchNet data balanced for classification - from the CodeBERT repo. '''
-        super(CodeSearchBalancedDM, self).__init__()
+        super().__init__()
         self.config = config
-        self.tokenizer = tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained('microsoft/codebert-base')
 
         self.processor = CodesearchProcessor()
         self.files = {'train' : 'train.txt', 'dev' : 'valid.txt', 'test' : 'test/batch_0.txt'}
