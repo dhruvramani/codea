@@ -18,7 +18,7 @@ def get_config():
     
     parser.add_argument('--model', type=str.lower, default='p_codebert', choices=['p_codebert', ])
     parser.add_argument('--prog_lang', type=str.lower, default='python', choices=['python', 'java', 'javascript', 'c'])
-    parser.add_argument('--dataset', type=str.lower, default='codesearch_bal', choices=['codesearch_bal', ])
+    parser.add_argument('--dataset', type=str.lower, default='codesearch_bal', choices=['codesearch_bal', 'codesearch'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
     parser.add_argument('--resume_from_checkpoint', type=str, default='')

@@ -55,5 +55,6 @@ class PretrainDataModule(pl.LightningDataModule):
         self.dataset = dataset
         self.collator = PretrainDataCollate(config, tokenizer, pretrain_tasks)
 
-    def train_dataloader(self, batch_size=None): # NOTE fix batch_size ?
+    def train_dataloader(self, batch_size=None):
+        batch_size = self.config.batch_size if batch_size is None else batch_size
         return DataLoader(self.dataset, batch_size=batch_size, collate_fn=self.collator.collate_fn)

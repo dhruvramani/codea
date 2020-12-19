@@ -16,9 +16,10 @@ def get_config():
     parser = argparse.ArgumentParser("Code Completion - Model Independent Config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
-    parser.add_argument('--model', type=str.lower, default='gpt2', choices=['gpt2', 'transfoxl', 'prophetnet'])
+    parser.add_argument('--model', type=str.lower, default='gpt2', choices=['gpt2', 'transfoxl', 'prophetnet']) 
+    # NOTE - ^ change it to transformers model names
     parser.add_argument('--prog_lang', type=str.lower, default='python', choices=['python', 'java', 'javascript', 'c'])
-    parser.add_argument('--dataset', type=str.lower, default='bigcode', choices=['bigcode', ])
+    parser.add_argument('--dataset', type=str.lower, default='codesearch', choices=['bigcode', 'codesearch'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
     parser.add_argument('--resume_from_checkpoint', type=str, default='')

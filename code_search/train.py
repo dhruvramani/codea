@@ -11,9 +11,12 @@ def select_dataset(config, ttype):
     sys.path.append(BASE_DIR)
     
     if config.dataset == 'codesearch_bal':
-        from datasets import CodeSearchBalancedDataModule
+        from dataset_scripts import CodeSearchBalancedDataModule
         datamodule = CodeSearchBalancedDataModule(config)
-    
+    elif config.dataset == 'codesearch':
+        from dataset_scripts import CodeSearchNetMultimodalDataModule
+        datamodule = CodeSearchNetMultimodalDataModule(config)
+        
     datamodule.setup(stage=ttype)
     return datamodule
 

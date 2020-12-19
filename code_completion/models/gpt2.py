@@ -24,7 +24,8 @@ class GPT2Code(pl.LightningModule):
         self.metric = load_metric('rouge')
 
     def forward(self, input_code, num_suggestions=5, num_beams=5, max_length=50):
-        input_ids = self.tokenizer(input_code) # TODO - try out Top-K sampling [https://huggingface.co/blog/how-to-generate]
+        input_ids = self.tokenizer(input_code) 
+        # TODO - try out pipeline OR Top-K sampling [https://huggingface.co/blog/how-to-generate]
         gen_outputs = self.model.generate(input_ids, early_stopping=True, num_return_sequences=num_suggestions, \ 
             max_length=max_length, num_beams=num_beams)
 

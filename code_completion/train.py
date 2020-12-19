@@ -11,8 +11,11 @@ def select_dataset(config, ttype):
     sys.path.append(BASE_DIR)
     
     if config.dataset == 'bigcode':
-        from datasets import BigCodeDataModule
+        from dataset_scripts import BigCodeDataModule
         datamodule = BigCodeDataModule(config)
+    elif config.dataset == 'codesearch':
+        from dataset_scripts import CodeSearchNetUnimodalDataModule
+        datamodule = CodeSearchNetUnimodalDataModule(config)
     
     datamodule.setup(stage=ttype)
     return datamodule
