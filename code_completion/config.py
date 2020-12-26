@@ -9,6 +9,7 @@ MODULE_DIR = os.path.dirname((os.path.abspath(__file__)))
 BASE_DIR = os.path.dirname(MODULE_DIR)
 DATA_DIR = "/content/drive/My Drive/Startup/data_files/"
 #DATA_DIR = "/scratch/sceatch2/dhruvramani/code_data/"
+SAVE_DIR  = "/content/drive/My Drive/Startup/save/"
 
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
@@ -36,8 +37,9 @@ def get_config():
     # NOTE - See the modifications to paths below.
     parser.add_argument('--data_path', type=str, default=os.path.join(DATA_DIR, 'data/'))
     parser.add_argument('--cache_path', type=str, default=os.path.join(DATA_DIR, 'cache/'))
-    parser.add_argument('--models_save_path', type=str, default=os.path.join(BASE_DIR, 'save/code_completion/models/'))
-    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(BASE_DIR, 'save/code_completion/tensorboard/'))
+    parser.add_argument('--tokenizer_path', type=str, default=os.path.join(DATA_DIR, 'cache/'))
+    parser.add_argument('--models_save_path', type=str, default=os.path.join(SAVE_DIR, 'code_completion_models/'))
+    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(SAVE_DIR, 'code_completion_tensorboard/'))
 
     parser.add_argument('--n_epochs', type=int, default=8)    
     parser.add_argument('--batch_size', type=int, default=32)
@@ -45,14 +47,17 @@ def get_config():
     parser.add_argument('--max_seq_length', type=int, default=200)
 
     config = parser.parse_args()
-    config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
-    config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+    if config.dataset != 'all':
+        config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+        config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+    config.tokenizer_path = os.path.join(config.tokenizer_path, '{}/tokenizer/'.format(config.prog_lang))
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.resume_from_checkpoint = os.path.join(config.models_save_path, config.resume_from_checkpoint)
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)
+    create_dir(config.tokenizer_path, recreate=False)
     create_dir(config.models_save_path, recreate=False)
     create_dir(config.tensorboard_path, recreate=False)
 

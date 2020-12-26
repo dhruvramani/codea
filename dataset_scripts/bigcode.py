@@ -1,47 +1,81 @@
 import os
+import pickle
+import shutil
 import urllib.request
+from pathlib import Path
+from itertools import cycle
 
 import torch
 import transformers
 import pytorch_lightning as pl
 
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, IterableDataset
 from transformers import DataCollatorWithPadding
 
-import dataset_scripts.utils as utils
+import utils as utils #dataset_scripts.utils
 
-# NOTE - IMP, shift to datasets - memory efficient af.
+# NOTE - IMP, old data, ~2015. Not to be used solely.
 
-URLS = {'python' : {'train' : ('large_training_set_pre', 'https://zenodo.org/record/3628636/files/large_training_set_pre?download=1'),
-                    'test'  : ('test_set_pre', 'https://zenodo.org/record/3628636/files/test_set_pre?download=1'),
-                    'val'   : ('val_set_pre', 'https://zenodo.org/record/3628636/files/testProjects?download=1')},}
+URLS = {'python' : {'data' : ('python-corpus.tar.gz', 'https://zenodo.org/record/3628784/files/python-corpus.tar.gz?download=1'),
+                    'stats': ('python_dataset_stats.tar.gz', 'https://zenodo.org/record/3628784/files/python_dataset_stats.tar.gz?download=1'),},}
 
-class BigCodeDataset(Dataset):
+FILES = {'python' : {'train': 'python_dataset_stats/large_training_set.txt',
+                     'val'  : 'python_dataset_stats/validation_set.txt',
+                     'test' : 'python_dataset_stats/test_set.txt',
+                     'dir'  : 'python-corpus/cleaned/'},}
+
+class BigCodeDataset(IterableDataset):
     def __init__(self, config, tokenizer, ttype='train', preprocess_code=True):
         assert ttype in ['train', 'test', 'val']
-        
+        self.ttype = ttype
         self.config = config
         self.tokenizer = tokenizer
         self.preprocess_code = preprocess_code
 
-        self.lang_dat = URLS[config.prog_lang]
-        self.data_file = os.path.join(config.data_path, self.lang_dat[ttype][0])
-        self.cache_path = os.path.join(config.cache_path, self.lang_dat[ttype][0])
+        self._setup()
 
-        self.file_index, self.len = utils.index_file(self.data_file, self.cache_path)
+    def _setup(self):
+        lang_dat = FILES[self.config.prog_lang]
+        dir_cache = os.path.join(self.config.cache_path, '{}_dir.pkl'.format(self.ttype))
 
-    def __len__(self):
-        return self.len
+        if not os.path.isfile(dir_cache):
+            ref_file = lang_dat[self.ttype]
+            ref_file = os.path.join(self.config.data_path, ref_file)
 
-    def __getitem__(self, idx):
-        with open(self.data_file, 'rb', encoding='utf-8') as f:
-            f.seek(self.file_index[idx])
-            line = f.readline()
+            self.dirs = []
+            with open(ref_file, 'r') as rf:
+                content = rf.read()
+            for row in content.splitlines()[1:]:
+                dire = row.split(',')[0]
+                dire = os.path.join(self.config.data_path, lang_dat['dir'], dire)
+                if os.path.isdir(dire):
+                    self.dirs.append(dire)
+            with open(dir_cache, 'wb') as f:
+                pickle.dump(self.dirs, f)
+        else:
+            print('BIGCODE - Using cache.')
+            with open(dir_cache, 'rb') as f:
+                self.dirs = pickle.load(f)
 
-        if self.preprocess_code:
-            line = utils.preprocess_code(line)
-        
-        return self.tokenizer(line, add_special_tokens=False)
+    def stream(self, add_special_tokens=False):
+        for dire in self.dirs:
+            files = Path(dire).rglob('*.py')
+            files = list(map(lambda f: str(f.resolve()), files))
+            for cfile in files:
+                if not(os.path.exists(cfile) and os.path.isfile(cfile)):
+                    continue
+                with open(cfile,'r') as f:
+                    code = f.read()
+                if self.preprocess_code:
+                    code = utils.preprocess_code(self.config, code)
+                
+                for line in code.splitlines():
+                    if line.strip() != '':
+                        line = self.tokenizer(line, add_special_tokens=add_special_tokens)
+                        yield line
+    
+    def __iter__(self):
+        return cycle(self.stream())
 
 class BigCodeDataModule(pl.LightningDataModule):
     def __init__(self, config):
@@ -49,23 +83,23 @@ class BigCodeDataModule(pl.LightningDataModule):
         assert config.prog_lang in URLS.keys()
 
         self.config = config
-        self.tokenizer = utils.get_tokenizer(config.prog_lang)
+        self.tokenizer = utils.get_tokenizer(config)
         
         if not (os.path.exists(config.data_path) and os.listdir(config.data_path)):
             self.prepare_data()
 
     def train_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.train_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding) 
+        return DataLoader(self.train_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer)) 
         # TODO or default_data_collator (others below too)
 
     def val_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.val_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding)
+        return DataLoader(self.val_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer)) 
 
     def test_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding)
+        return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer)) 
 
     def prepare_data(self):
         download_dataset(self.config)
@@ -81,9 +115,12 @@ class BigCodeDataModule(pl.LightningDataModule):
 def download_dataset(config):
     print("=> Downloading Bigcode {} dataset".format(config.prog_lang))
 
-    for file, url in URLS[config.prog_lang].values():
-        file = os.path.join(config.data_path, file)
-        urllib.request.urlretrieve(url, file)
+    for f, url in URLS[config.prog_lang].values():
+        f = os.path.join(config.data_path, f)
+        urllib.request.urlretrieve(url, f)
+    
+        dir_p = f.replace('.tar.gz', '/')
+        shutil.unpack_archive(f, dir_p)
 
     print("=> Download completed.")
 
@@ -94,4 +131,5 @@ if __name__ == '__main__':
     datamodule = BigCodeDataModule(config)
     datamodule.setup(stage='fit')
     train_loader = datamodule.train_dataloader(batch_size=1)
-    print(datamodule.tokenizer.decode[for i in next(iter(train_loader))['input_ids']])
+    # print(next(iter(train_loader)))
+    print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])

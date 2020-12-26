@@ -9,6 +9,7 @@ MODULE_DIR = os.path.dirname((os.path.abspath(__file__)))
 BASE_DIR = os.path.dirname(MODULE_DIR)
 DATA_DIR = "/content/drive/My Drive/Startup/data_files/"
 #DATA_DIR = "/scratch/sceatch2/dhruvramani/code_data/"
+SAVE_DIR  = "/content/drive/My Drive/Startup/save/"
 
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
@@ -18,7 +19,7 @@ def get_config():
     
     parser.add_argument('--model', type=str.lower, default='bart', choices=['bart', 'mbart'])
     parser.add_argument('--prog_lang', type=str.lower, default='python', choices=['python', 'java', 'javascript', 'c'])
-    parser.add_argument('--dataset', type=str.lower, default='-', choices=['-']) # TODO
+    parser.add_argument('--dataset', type=str.lower, default='codesearch', choices=['codesearch'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
     parser.add_argument('--resume_from_checkpoint', type=str, default='')
@@ -35,8 +36,9 @@ def get_config():
     # NOTE - See the modifications to paths below.
     parser.add_argument('--data_path', type=str, default=os.path.join(DATA_DIR, 'data/'))
     parser.add_argument('--cache_path', type=str, default=os.path.join(DATA_DIR, 'cache/'))
-    parser.add_argument('--models_save_path', type=str, default=os.path.join(BASE_DIR, 'save/code_summ/models/'))
-    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(BASE_DIR, 'save/code_summ/tensorboard/'))
+    parser.add_argument('--tokenizer_path', type=str, default=os.path.join(DATA_DIR, 'cache/'))
+    parser.add_argument('--models_save_path', type=str, default=os.path.join(SAVE_DIR, 'code_summ_models/'))
+    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(SAVE_DIR, 'code_summ_tensorboard/'))
 
     parser.add_argument('--n_epochs', type=int, default=8)    
     parser.add_argument('--batch_size', type=int, default=32)
@@ -44,14 +46,17 @@ def get_config():
     parser.add_argument('--max_seq_length', type=int, default=200)
 
     config = parser.parse_args()
-    config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
-    config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+    if config.dataset != 'all':
+        config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+        config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+    config.tokenizer_path = os.path.join(config.tokenizer_path, '{}/tokenizer/'.format(config.prog_lang))
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.resume_from_checkpoint = os.path.join(config.models_save_path, config.resume_from_checkpoint)
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)
+    create_dir(config.tokenizer_path, recreate=False)
     create_dir(config.models_save_path, recreate=False)
     create_dir(config.tensorboard_path, recreate=False)
 

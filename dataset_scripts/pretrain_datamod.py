@@ -3,13 +3,15 @@ import numpy as np
 import transformers
 import pytorch_lightning as pl 
 
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from transformers import (
     DataCollatorWithPadding,
     DataCollatorForLanguageModeling,
     DataCollatorForWholeWordMask,
     DataCollatorForSOP,
     DataCollatorForPermutationLanguageModeling)
+
+import utils as utils #dataset_scripts.utils
 
 class PretrainDataCollate():
     def __init__(self, config, tokenizer, pretrain_tasks=['mlm']):
@@ -47,14 +49,28 @@ class PretrainDataCollate():
         return task(batch)
 
 class PretrainDataModule(pl.LightningDataModule):
-    def __init__(self, config, dataset, tokenizer, pretrain_tasks=['mlm']):
-        ''' - dataset : A torch Dataset object which returns tokenized string '''
+    def __init__(self, config, dataset, pretrain_tasks=['mlm', 'clm']):
+        ''' - dataset : A uninialized torch Dataset object which returns tokenized string '''
         super().__init__()
 
         self.config = config
-        self.dataset = dataset
-        self.collator = PretrainDataCollate(config, tokenizer, pretrain_tasks)
+        self.tokenizer = utils.get_tokenizer(config)
+        self.dataset = dataset(config, self.tokenizer)
+        self.collator = PretrainDataCollate(config, self.tokenizer, pretrain_tasks)
 
     def train_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
         return DataLoader(self.dataset, batch_size=batch_size, collate_fn=self.collator.collate_fn)
+
+if __name__ == '__main__':
+    print("Testing pretrain_mod.py")
+    from bigcode import BigCodeDataset
+    
+    config = utils.get_test_config(model='gpt2', dataset='bigcode')
+    datamodule = PretrainDataModule(config, BigCodeDataset)
+    datamodule.setup(stage='fit')
+    train_loader = iter(datamodule.train_dataloader(batch_size=5))
+    print(next(train_loader))
+    print(next(train_loader))
+    print(next(train_loader))
+   
