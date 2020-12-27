@@ -1,9 +1,9 @@
 import torch
 import transformers
 import pytorch_lightning as pl
-from torch.nn import functional as F
 
 from datasets import load_metric
+from torch.nn import functional as F
 from transformers import TransfoXLConfig, TransfoXLTokenizer, TransfoXLLMHeadModel
 
 class TransXLCode(pl.LightningModule):
@@ -11,15 +11,13 @@ class TransXLCode(pl.LightningModule):
         super(TransXLCode, self).__init__()
 
         self.config = config
-        self.pretrained = model_config is None and tokenizer is None
-
-        self.model_config = TransfoXLConfig() if model_config is None else model_config
         self.tokenizer = TransfoXLTokenizer.from_pretrained('transfo-xl-wt103') if tokenizer is None \ 
                          else tokenizer
+        self.model_config = TransfoXLConfig(vocab_size=self.tokenizer.get_vocab_size()) if model_config is None else model_config
 
         self.model = TransfoXLLMHeadModel
-        self.model = self.model.from_pretrained('transfo-xl-wt103', config=self.model_config) if self.pretrained \
-                     else self.model(self.model_config)
+        self.model = self.model.from_pretrained('transfo-xl-wt103', config=self.model_config)
+        self.model.resize_token_embeddings(len(self.tokenizer))
 
         self.metric = load_metric('rouge')
 
@@ -33,11 +31,8 @@ class TransXLCode(pl.LightningModule):
 
     def _step(self, batch, batch_idx):
         input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
 
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, \
-            labels=input_ids, return_dict=True) # See doc. for more info on Labels.
-
+        outputs = self.model(**batch, labels=input_ids, return_dict=True) # See doc. for more info on Labels.
         return outputs
 
     def training_step(self, train_batch, batch_idx):

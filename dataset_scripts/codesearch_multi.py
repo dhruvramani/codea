@@ -16,6 +16,8 @@ from transformers import DataCollatorForTokenClassification
 
 import utils as utils #dataset_scripts
 
+# TODO - Add option for code2nl or nl2code
+
 URLS = {'javascript' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v2/javascript.zip',
         'python' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v2/python.zip',
         'java' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v2/java.zip',

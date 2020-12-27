@@ -1,7 +1,9 @@
 import torch
 import transformers 
 import pytorch_lightning as pl
+
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from config import get_config
 from train import select_dataset, select_model
@@ -11,7 +13,12 @@ def test(config):
     model = select_model(config, datamodule)
 
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
-    trainer = pl.Trainer(default_root_dir=config.models_save_path, weights_save_path=config.models_save_path, logger=logger)
+    ckpt_callback = ModelCheckpoint(monitor='val_rouge2_fmeasure', dirpath=config.models_save_path, save_top_k=3)
+
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=ckpt_callback.best_model_path, callbacks=[ckpt_callback],
+                tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus,
+                default_root_dir=config.models_save_path, weights_save_path=config.models_save_path)
+    
     trainer.test(model=model, datamodule=datamodule)
 
 if __name__ == '__main__':

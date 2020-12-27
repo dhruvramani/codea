@@ -13,7 +13,8 @@ TAGS = {'eol' : '<EOL>\n', 'bof' : '<BOF>', 'eof': '<EOF>', 'tab': '<INDENT>',
         'get' : '<STR_LIT:GET>', }
 
 def preprocess_code(config, code_block):
-    # IMP - Maybe don't split it by new-line, just feed the whole corpus
+    # NOTE IMP - Maybe don't split it by new-line, just feed the whole corpus
+    # NOTE - See bos_token, eos_token from https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizer
     if config.prog_lang == 'python':
         code_block = autopep8.fix_code(code_block)
 

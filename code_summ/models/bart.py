@@ -12,38 +12,29 @@ class BartCode(pl.LightningModule):
         super(BartCode, self).__init__()
 
         self.config = config
-        self.pretrained_name = 'facebook/bart-base' # 'facebook/bart-large'
-        self.pretrained = model_config is None and tokenizer is None
-
-        self.model_config = BartConfig() if model_config is None else model_config
-        self.tokenizer = BartTokenizer.from_pretrained(self.pretrained_name) if tokenizer is None \ 
+        self.tokenizer = BartTokenizer.from_pretrained('facebook/bart-base') if tokenizer is None \ 
                          else tokenizer
+        self.model_config = BartConfig(vocab_size=self.tokenizer.get_vocab_size()) if model_config is None else model_config
 
         self.model = BartForConditionalGeneration
-        self.model = self.model.from_pretrained(self.pretrained_name, config=self.model_config) if self.pretrained \
-                     else self.model(self.model_config)
+        self.model = self.model.from_pretrained('facebook/bart-base', config=self.model_config)
 
         self.metric1 = load_metric('bleu')
         self.metric2 = load_metric('rouge')
 
     def forward(self, input_code, num_beams=5, max_length=50):
-        input_id = self.tokenizer(input_code)
-        summary_id = self.model.generate(input_id, num_beams=num_beams, max_length=max_length, early_stopping=True)
-        output = self.tokenizer.decode(summary_id, skip_special_tokens=True)
+        input_ids = self.tokenizer(input_code)
+        summary_ids = self.model.generate(input_ids, num_beams=num_beams, max_length=max_length, early_stopping=True)
+        output = self.tokenizer.decode(summary_ids, skip_special_tokens=True)
         return output
 
     def _step(self, batch, batch_idx):
         # Refer : https://discuss.huggingface.co/t/train-bart-for-conditional-generation-e-g-summarization/1904, 
         #         https://github.com/huggingface/transformers/blob/master/examples/seq2seq/finetune.py#L138  
 
-        # NOTE : Dataset format - {'code' : {'input_ids':, 'attn_mask':, },
-        #                          'summary':{'input_ids':, 'attn_mask': }}
-        # NOTE : See if the above is possible
-
-        inputs, targets = batch['code'], batch['summary']
-        input_ids, attention_mask = inputs['input_ids'], inputs['attention_mask']
+        input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
+        labels = batch['labels']
         
-        labels = targets['input_ids']
         decoder_input_ids = shift_tokens_right(labels, self.tokenizer.pad_token_id)
         labels[labels[:, :] == self.tokenizer.pad_token_id] = -100 # NOTE - not sure if this is needed.
 

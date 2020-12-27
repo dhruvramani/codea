@@ -22,7 +22,7 @@ def get_config():
     parser.add_argument('--dataset', type=str.lower, default='codesearch', choices=['codesearch'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
-    parser.add_argument('--resume_from_checkpoint', type=str, default='')
+    parser.add_argument('--resume_best_checkpoint', type=str2bool, default=1)
 
     # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)
@@ -52,7 +52,6 @@ def get_config():
     config.tokenizer_path = os.path.join(config.tokenizer_path, '{}/tokenizer/'.format(config.prog_lang))
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
-    config.resume_from_checkpoint = os.path.join(config.models_save_path, config.resume_from_checkpoint)
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)

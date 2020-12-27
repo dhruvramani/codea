@@ -1,25 +1,24 @@
 import torch
 import transformers
 import pytorch_lightning as pl
-from torch.nn import functional as F
 
 from datasets import load_metric
+from torch.nn import functional as F
 from transformers import GPT2Config, GPT2TokenizerFast, GPT2LMHeadModel
 
 class GPT2Code(pl.LightningModule):
-    def __init__(self, config, model_config=None, tokenizer=None):
+    def __init__(self, config, tokenizer, model_config=None):
         super(GPT2Code, self).__init__()
 
         self.config = config
-        self.pretrained = model_config is None and tokenizer is None
-
-        self.model_config = GPT2Config() if model_config is None else model_config
         self.tokenizer = GPT2TokenizerFast.from_pretrained('gpt2') if tokenizer is None \ 
                          else tokenizer
+        self.model_config = GPT2Config(vocab_size=self.tokenizer.get_vocab_size()) if model_config is None else model_config
 
         self.model = GPT2LMHeadModel
-        self.model = self.model.from_pretrained('gpt2', config=self.model_config) if self.pretrained \
-                     else self.model(self.model_config)
+        # Loading works properly - see https://github.com/PyTorchLightning/pytorch-lightning/issues/3096#issuecomment-681065813
+        self.model = self.model.from_pretrained('gpt2', config=self.model_config)
+        self.model.resize_token_embeddings(len(self.tokenizer))
 
         self.metric = load_metric('rouge')
 
@@ -34,11 +33,8 @@ class GPT2Code(pl.LightningModule):
 
     def _step(self, batch, batch_idx):
         input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
 
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, \
-            labels=input_ids, return_dict=True) # See doc. for more info on Labels.
-
+        outputs = self.model(**batch, labels=input_ids, return_dict=True) # See doc. for more info on Labels.
         return outputs
 
     def training_step(self, train_batch, batch_idx):
