@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 
 from datasets import load_metric
-from transformers.modeling_bart import shift_tokens_right
+from transformers.models.bart.modeling_bart import shift_tokens_right
 from transformers import BartConfig, BartTokenizer, BartForConditionalGeneration
 
 class BartCode(pl.LightningModule):
@@ -14,7 +14,7 @@ class BartCode(pl.LightningModule):
         self.config = config
         self.tokenizer = BartTokenizer.from_pretrained('facebook/bart-base') if tokenizer is None \
                          else tokenizer
-        self.model_config = BartConfig() if model_config is None else model_config
+        self.model_config = BartConfig.from_pretrained('facebook/bart-base') if model_config is None else model_config
 
         self.model = BartForConditionalGeneration
         self.model = self.model.from_pretrained('facebook/bart-base', config=self.model_config)
@@ -39,7 +39,7 @@ class BartCode(pl.LightningModule):
         decoder_input_ids = shift_tokens_right(labels, self.tokenizer.pad_token_id)
         labels[labels[:, :] == self.tokenizer.pad_token_id] = -100 # NOTE - not sure if this is needed.
 
-        outputs = self.model(input_ids, attention_mask, decoder_input_ids=decoder_input_ids\
+        outputs = self.model(input_ids, attention_mask, decoder_input_ids=decoder_input_ids, \
                   labels=labels, return_dict=True)
         return outputs
 
@@ -66,6 +66,15 @@ class BartCode(pl.LightningModule):
         score = {"test_" + key : score[key] for key in score}
 
         self.log_dict(score)
+
+    def configure_optimizers(self, learning_rate=1e-5):
+        no_decay = ['bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        optimizer = transformers.AdamW(optimizer_grouped_parameters, lr=learning_rate)
+        return optimizer
 
     def compute_metrics(pred_ids, label_ids):
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)

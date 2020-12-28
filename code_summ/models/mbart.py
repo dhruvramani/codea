@@ -4,18 +4,18 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 
 from datasets import load_metric
-from transformers.modeling_bart import shift_tokens_right
+from transformers.models.bart.modeling_bart import shift_tokens_right
 from transformers import BartConfig, BartTokenizer, BartForConditionalGeneration
 from transformers import MBartConfig, MBartTokenizer, MBartForConditionalGeneration
 
 class MBartCode(pl.LightningModule):
-    def __init__(self, config, model_config, code_tokenizer):
+    def __init__(self, config, tokenizer, model_config=None):
         super(MBartCode, self).__init__()
         ''' NOTE - All 3 Barts use the same config and tokenizer. See logic in the notes. '''
 
         self.config = config
-        self.code_tokenizer = BartTokenizer.from_pretrained('facebook/bart-base') if code_tokenizer is None else code_tokenizer
-        self.model_config = BartConfig() if model_config is None else model_config
+        self.code_tokenizer = BartTokenizer.from_pretrained('facebook/bart-base') if tokenizer is None else tokenizer
+        self.model_config = BartConfig.from_pretrained('facebook/bart-base') if model_config is None else model_config
         self.eng_tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
         
         self.code_bart = BartForConditionalGeneration.from_pretrained('facebook/bart-base', config=self.model_config)
@@ -25,8 +25,8 @@ class MBartCode(pl.LightningModule):
         self.code_bart.resize_token_embeddings(len(self.code_tokenizer))
         self.multi_bart.resize_token_embeddings(len(self.code_tokenizer))
 
-        self.multi_bart.encoder = self.code_bart.encoder
-        self.multi_bart.decoder = self.eng_bart.decoder
+        self.multi_bart.model.encoder = self.code_bart.model.encoder
+        self.multi_bart.model.decoder = self.eng_bart.model.decoder
 
         self.current_train = 'code'
         self.current_model = self.code_bart
@@ -36,7 +36,7 @@ class MBartCode(pl.LightningModule):
 
     def switch_model(self, choice):
         switches = {'eng' : self.eng_bart, 'code' : self.code_bart, 'multi' : self.multi_bart}
-        assert choice.lower() is in switches.keys()
+        assert choice.lower() in switches.keys()
 
         self.current_train = choice.lower()
         self.current_model = switches[self.current_train]
@@ -55,7 +55,7 @@ class MBartCode(pl.LightningModule):
         decoder_input_ids = shift_tokens_right(labels, self.tokenizer.pad_token_id)
         labels[labels[:, :] == self.tokenizer.pad_token_id] = -100 # NOTE - not sure if this is needed.
 
-        outputs = self.model(input_ids, attention_mask, decoder_input_ids=decoder_input_ids\
+        outputs = self.model(input_ids, attention_mask, decoder_input_ids=decoder_input_ids,\
                   labels=labels, return_dict=True)
         return outputs
 
@@ -82,6 +82,16 @@ class MBartCode(pl.LightningModule):
         score = {"test_" + key : score[key] for key in score}
 
         self.log_dict(score)
+
+    def configure_optimizers(self, learning_rate=1e-5):
+        # TODO DEBUG - Make 3 optimizers for each model?
+        no_decay = ['bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        optimizer = transformers.AdamW(optimizer_grouped_parameters, lr=learning_rate)
+        return optimizer
 
     def compute_metrics(pred_ids, label_ids):
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)

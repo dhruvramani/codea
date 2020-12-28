@@ -21,7 +21,7 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.model = RobertaForSequenceClassification.from_pretrained('microsoft/codebert-base', config=self.model_config)
 
         self.acc = pl.metrics.Accuracy()
-        self.f1 = pl.metrics.Fbeta(num_classes=self.num_labels, beta=1.0)
+        self.f1 = pl.metrics.F1(num_classes=self.num_labels)
                 
     def forward(self, nl_text, code):
         encoded_input = self.tokenizer(nl_text, code)
