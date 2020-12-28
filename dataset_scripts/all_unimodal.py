@@ -9,10 +9,10 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import DataCollatorWithPadding
 
-import utils as utils #dataset_scripts.utils
-from bigcode import BigCodeDataset
-from codesearch_uni import CodeSearchNetUnimodalDataset
-from eth150 import ETH150Dataset
+import dataset_scripts.utils as utils 
+from dataset_scripts.bigcode import BigCodeDataset
+from dataset_scripts.codesearch_uni import CodeSearchNetUnimodalDataset
+from dataset_scripts.eth150 import ETH150Dataset
 
 DATASETS = {'bigcode': BigCodeDataset, 'codesearch': CodeSearchNetUnimodalDataset, 'eth150': ETH150Dataset}
 

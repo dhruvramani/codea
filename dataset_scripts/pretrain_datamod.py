@@ -11,7 +11,7 @@ from transformers import (
     DataCollatorForSOP,
     DataCollatorForPermutationLanguageModeling)
 
-import utils as utils #dataset_scripts.utils
+import dataset_scripts.utils as utils
 
 class PretrainDataCollate():
     def __init__(self, config, tokenizer, pretrain_tasks=['mlm']):

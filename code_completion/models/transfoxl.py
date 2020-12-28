@@ -7,23 +7,22 @@ from torch.nn import functional as F
 from transformers import TransfoXLConfig, TransfoXLTokenizer, TransfoXLLMHeadModel
 
 class TransXLCode(pl.LightningModule):
-    def __init__(self, config, model_config=None, tokenizer=None):
+    def __init__(self, config, tokenizer):
         super(TransXLCode, self).__init__()
 
         self.config = config
-        self.tokenizer = TransfoXLTokenizer.from_pretrained('transfo-xl-wt103') if tokenizer is None \ 
+        self.tokenizer = TransfoXLTokenizer.from_pretrained('transfo-xl-wt103') if tokenizer is None \
                          else tokenizer
-        self.model_config = TransfoXLConfig(vocab_size=self.tokenizer.get_vocab_size()) if model_config is None else model_config
 
-        self.model = TransfoXLLMHeadModel
-        self.model = self.model.from_pretrained('transfo-xl-wt103', config=self.model_config)
-        self.model.resize_token_embeddings(len(self.tokenizer))
-
+        self.model_config = TransfoXLConfig(vocab_size=len(self.tokenizer), cutoffs=[])
+        self.model = TransfoXLLMHeadModel(self.model_config)
+        
+        self.mems = None
         self.metric = load_metric('rouge')
 
     def forward(self, input_code, num_suggestions=5, num_beams=5, max_length=50):
         input_ids = self.tokenizer(input_code) # TODO - try out Top-K sampling [https://huggingface.co/blog/how-to-generate]
-        gen_outputs = self.model.generate(input_ids, early_stopping=True, num_return_sequences=num_suggestions, \ 
+        gen_outputs = self.model.generate(input_ids, early_stopping=True, num_return_sequences=num_suggestions, \
             max_length=max_length, num_beams=num_beams)
 
         outputs = [self.tokenizer.decode(gen_op, skip_special_tokens=True) for gen_op in gen_outputs]
@@ -32,7 +31,8 @@ class TransXLCode(pl.LightningModule):
     def _step(self, batch, batch_idx):
         input_ids = batch['input_ids']
 
-        outputs = self.model(**batch, labels=input_ids, return_dict=True) # See doc. for more info on Labels.
+        outputs = self.model(input_ids=input_ids, mems=self.mems, labels=input_ids, return_dict=True) # See doc. for more info on Labels.
+        self.mems = outputs['mems']
         return outputs
 
     def training_step(self, train_batch, batch_idx):
@@ -57,6 +57,15 @@ class TransXLCode(pl.LightningModule):
         score = self.compute_metrics(outputs['logits'], test_batch['input_ids'])
         score = {"test_" + key : score[key] for key in score}
         self.log_dict(score)
+    
+    def configure_optimizers(self, learning_rate=1e-5):
+        no_decay = ['bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        optimizer = transformers.AdamW(optimizer_grouped_parameters, lr=learning_rate)
+        return optimizer
 
     def compute_metrics(pred_ids, label_ids):
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)

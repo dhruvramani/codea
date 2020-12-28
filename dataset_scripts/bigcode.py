@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import DataCollatorWithPadding
 
-import utils as utils #dataset_scripts.utils
+import dataset_scripts.utils as utils 
 
 # NOTE - IMP, old data, ~2015. Not to be used solely.
 
@@ -85,8 +85,8 @@ class BigCodeDataModule(pl.LightningDataModule):
         self.config = config
         self.tokenizer = utils.get_tokenizer(config)
         
-        if not (os.path.exists(config.data_path) and os.listdir(config.data_path)):
-            self.prepare_data()
+        # if not (os.path.exists(config.data_path) and os.listdir(config.data_path)):
+        #     self.prepare_data()
 
     def train_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
@@ -101,8 +101,8 @@ class BigCodeDataModule(pl.LightningDataModule):
         batch_size = self.config.batch_size if batch_size is None else batch_size
         return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer)) 
 
-    def prepare_data(self):
-        download_dataset(self.config)
+    # def prepare_data(self):
+    #     download_dataset(self.config)
 
     def setup(self, stage=None):
         if stage == 'fit' or stage == None:

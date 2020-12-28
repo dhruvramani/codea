@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import DataCollatorWithPadding
 
-import utils as utils #dataset_scripts.utils
+import dataset_scripts.utils as utils
 
 URLS = {'javascript' : '',
         'python' : 'http://files.srl.inf.ethz.ch/data/py150_files.tar.gz'}
@@ -65,16 +65,16 @@ class ETH150DataModule(pl.LightningDataModule):
         self.config = config
         self.tokenizer = utils.get_tokenizer(config)
         
-        if not (os.path.exists(config.data_path) and os.listdir(config.data_path)):
-            self.prepare_data()
+        # if not (os.path.exists(config.data_path) and os.listdir(config.data_path)):
+        #     self.prepare_data()
 
     def train_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
         return DataLoader(self.train_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer)) 
         # TODO or default_data_collator (others below too)
 
-    def prepare_data(self):
-        download_dataset(self.config)
+    # def prepare_data(self):
+    #     download_dataset(self.config)
 
     def setup(self, stage=None):
         if stage == 'fit' or stage == None:

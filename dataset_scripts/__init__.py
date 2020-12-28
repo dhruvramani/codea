@@ -1,5 +1,5 @@
 from dataset_scripts.pretrain_datamod import PretrainDataModule
-from datasets.all_unimodal import AllUnimodalDataModule
+from dataset_scripts.all_unimodal import AllUnimodalDataModule
 
 from dataset_scripts.bigcode import BigCodeDataModule
 from dataset_scripts.codesearch_uni import CodeSearchNetUnimodalDataModule

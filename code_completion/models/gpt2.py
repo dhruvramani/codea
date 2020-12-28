@@ -11,21 +11,22 @@ class GPT2Code(pl.LightningModule):
         super(GPT2Code, self).__init__()
 
         self.config = config
-        self.tokenizer = GPT2TokenizerFast.from_pretrained('gpt2') if tokenizer is None \ 
+        self.tokenizer = GPT2TokenizerFast.from_pretrained('gpt2') if tokenizer is None \
                          else tokenizer
-        self.model_config = GPT2Config(vocab_size=self.tokenizer.get_vocab_size()) if model_config is None else model_config
+        self.model_config = GPT2Config() if model_config is None else model_config
 
         self.model = GPT2LMHeadModel
         # Loading works properly - see https://github.com/PyTorchLightning/pytorch-lightning/issues/3096#issuecomment-681065813
         self.model = self.model.from_pretrained('gpt2', config=self.model_config)
         self.model.resize_token_embeddings(len(self.tokenizer))
+        # Might need to worry about ^ - maybe pass the path as config and pass it to from_pretrained
 
         self.metric = load_metric('rouge')
 
     def forward(self, input_code, num_suggestions=5, num_beams=5, max_length=50):
         input_ids = self.tokenizer(input_code) 
         # TODO - try out pipeline OR Top-K sampling [https://huggingface.co/blog/how-to-generate]
-        gen_outputs = self.model.generate(input_ids, early_stopping=True, num_return_sequences=num_suggestions, \ 
+        gen_outputs = self.model.generate(input_ids, early_stopping=True, num_return_sequences=num_suggestions, \
             max_length=max_length, num_beams=num_beams)
 
         outputs = [self.tokenizer.decode(gen_op, skip_special_tokens=True) for gen_op in gen_outputs]
@@ -60,6 +61,15 @@ class GPT2Code(pl.LightningModule):
         score = {"test_" + key : score[key] for key in score}
 
         self.log_dict(score)
+    
+    def configure_optimizers(self, learning_rate=1e-5):
+        no_decay = ['bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        optimizer = transformers.AdamW(optimizer_grouped_parameters, lr=learning_rate)
+        return optimizer
 
     def compute_metrics(pred_ids, label_ids):
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)

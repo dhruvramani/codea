@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorForTokenClassification
 
-import utils as utils #dataset_scripts
+import dataset_scripts.utils as utils
 
 # TODO - Add option for code2nl or nl2code
 
@@ -66,8 +66,8 @@ class CodeSearchNetMultimodalDataModule(pl.LightningDataModule):
             self.tokenizers[1] = utils.get_tokenizer(config.model) # DEBUG
         self.tokenizer = self.tokenizers[0]
         
-        if not (os.path.exists(config.data_path) and os.listdir(config.data_path)):
-            self.prepare_data()
+        # if not (os.path.exists(config.data_path) and os.listdir(config.data_path)):
+        #     self.prepare_data()
 
     def train_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
@@ -81,8 +81,8 @@ class CodeSearchNetMultimodalDataModule(pl.LightningDataModule):
         batch_size = self.config.batch_size if batch_size is None else batch_size
         return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorForTokenClassification(self.tokenizer))
 
-    def prepare_data(self):
-        download_dataset(self.config)
+    # def prepare_data(self):
+    #     download_dataset(self.config)
 
     def setup(self, stage=None):
         if stage == 'fit' or stage == None:
