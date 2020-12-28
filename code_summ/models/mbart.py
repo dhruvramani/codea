@@ -15,12 +15,16 @@ class MBartCode(pl.LightningModule):
 
         self.config = config
         self.code_tokenizer = BartTokenizer.from_pretrained('facebook/bart-base') if code_tokenizer is None else code_tokenizer
-        self.model_config = BartConfig(vocab_size=self.code_tokenizer.get_vocab_size()) if model_config is None else model_config
+        self.model_config = BartConfig() if model_config is None else model_config
         self.eng_tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
         
         self.code_bart = BartForConditionalGeneration.from_pretrained('facebook/bart-base', config=self.model_config)
-        self.eng_bart = BartForConditionalGeneration.from_pretrained('facebook/bart-base')
+        self.eng_bart = BartForConditionalGeneration.from_pretrained('facebook/bart-base', config=self.model_config)
         self.multi_bart = BartForConditionalGeneration.from_pretrained('facebook/bart-base', config=self.model_config)
+
+        self.code_bart.resize_token_embeddings(len(self.code_tokenizer))
+        self.multi_bart.resize_token_embeddings(len(self.code_tokenizer))
+
         self.multi_bart.encoder = self.code_bart.encoder
         self.multi_bart.decoder = self.eng_bart.decoder
 

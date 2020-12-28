@@ -12,12 +12,13 @@ class BartCode(pl.LightningModule):
         super(BartCode, self).__init__()
 
         self.config = config
-        self.tokenizer = BartTokenizer.from_pretrained('facebook/bart-base') if tokenizer is None \ 
+        self.tokenizer = BartTokenizer.from_pretrained('facebook/bart-base') if tokenizer is None \
                          else tokenizer
-        self.model_config = BartConfig(vocab_size=self.tokenizer.get_vocab_size()) if model_config is None else model_config
+        self.model_config = BartConfig() if model_config is None else model_config
 
         self.model = BartForConditionalGeneration
         self.model = self.model.from_pretrained('facebook/bart-base', config=self.model_config)
+        self.model.resize_token_embeddings(len(self.tokenizer))
 
         self.metric1 = load_metric('bleu')
         self.metric2 = load_metric('rouge')

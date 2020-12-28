@@ -12,7 +12,7 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.config = config
         self.num_labels = 2
         self.total_steps = total_steps # total_steps calculated in train.py - needed for scheduler.
-        self.model_config = RobertaConfig.from_pretrained('microsoft/codebert-base', num_labels=self.num_labels, finetuning_task='codesearch') \ 
+        self.model_config = RobertaConfig.from_pretrained('microsoft/codebert-base', num_labels=self.num_labels, finetuning_task='codesearch') \
                             if model_config is None else model_config
 
         self.tokenizer = RobertaTokenizer.from_pretrained('microsoft/codebert-base') if tokenizer is None \

@@ -22,11 +22,11 @@ def get_config():
     parser.add_argument('--dataset', type=str.lower, default='codesearch', choices=['codesearch'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
-    parser.add_argument('--resume_best_checkpoint', type=str2bool, default=1)
+    parser.add_argument('--resume_best_checkpoint', type=str2bool, default=True)
 
     # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)
-    parser.add_argument('--gpus', type=int, default=-1)
+    parser.add_argument('--gpus', type=int, default=None)
     parser.add_argument('--auto_select_gpus', type=str2bool, default=True)
 
     # NOTE - Lightning trainer args - not used yet - very handy tho, use later.

@@ -19,7 +19,6 @@ class GPT2Code(pl.LightningModule):
         # Loading works properly - see https://github.com/PyTorchLightning/pytorch-lightning/issues/3096#issuecomment-681065813
         self.model = self.model.from_pretrained('gpt2', config=self.model_config)
         self.model.resize_token_embeddings(len(self.tokenizer))
-        # Might need to worry about ^ - maybe pass the path as config and pass it to from_pretrained
 
         self.metric = load_metric('rouge')
 
