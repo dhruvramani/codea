@@ -9,6 +9,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from config import get_config, BASE_DIR
 
+# NOTE - A line completion system, for block level completion, use encoder-decoder model.
+
 def train(config):
     datamodule = select_dataset(config, 'fit')
     model = select_model(config, datamodule)

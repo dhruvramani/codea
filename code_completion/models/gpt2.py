@@ -34,7 +34,7 @@ class GPT2Code(pl.LightningModule):
     def _step(self, batch, batch_idx):
         input_ids = batch['input_ids']
 
-        outputs = self.model(**batch, labels=input_ids, return_dict=True) # See doc. for more info on Labels.
+        outputs = self.model(**batch, labels=input_ids.copy(), return_dict=True) # See doc. for more info on Labels.
         return outputs
 
     def training_step(self, train_batch, batch_idx):

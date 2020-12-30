@@ -24,14 +24,13 @@ URLS = {'javascript' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v
         'go' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v2/go.zip',}
 
 class CodeSearchNetMultimodalDataset(Dataset):
-    def __init__(self, config, tokenizers, ttype='train', preprocess_code=True, add_special_tokens=False):
+    def __init__(self, config, tokenizers, ttype='train', code_only=False):
         assert ttype in ['train', 'test', 'val']
         self.ttype = ttype
         self.config = config
         self.code_tokenizer = tokenizers[0]
         self.eng_tokenizer = tokenizers[-1] # NOTE : if common tokenizer, pass (tokenizer)
-        self.preprocess_code = preprocess_code
-        self.add_special_tokens = add_special_tokens
+        self.code_only = code_only
 
         self._setup()
 
@@ -47,12 +46,16 @@ class CodeSearchNetMultimodalDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.dataset[idx]
-        code, docstring = row['code'], row['docstring']
-        if self.preprocess_code:
-            code = utils.preprocess_code(self.config, code)
-        code = self.code_tokenizer(code, add_special_tokens=self.add_special_tokens)
-        docstring = self.eng_tokenizer(docstring, add_special_tokens=self.add_special_tokens)
-        code['labels'] = docstring['input_ids']
+        code = row['code']
+        
+        code = utils.preprocess_code(self.config, code, nlines=False)
+        code = self.code_tokenizer(code, add_special_tokens=False)
+        
+        if not code_only:
+            docstring = row['docstring']
+            docstring = self.eng_tokenizer(docstring, add_special_tokens=False)
+            code['labels'] = docstring['input_ids']
+        
         return code
 
 class CodeSearchNetMultimodalDataModule(pl.LightningDataModule):

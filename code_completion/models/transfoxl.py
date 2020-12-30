@@ -31,7 +31,7 @@ class TransXLCode(pl.LightningModule):
     def _step(self, batch, batch_idx):
         input_ids = batch['input_ids']
 
-        outputs = self.model(input_ids=input_ids, mems=self.mems, labels=input_ids, return_dict=True) # See doc. for more info on Labels.
+        outputs = self.model(input_ids=input_ids, mems=self.mems, labels=input_ids.copy(), return_dict=True) # See doc. for more info on Labels.
         self.mems = outputs['mems']
         return outputs
 

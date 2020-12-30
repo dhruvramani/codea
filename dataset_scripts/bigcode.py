@@ -25,12 +25,11 @@ FILES = {'python' : {'train': 'python_dataset_stats/large_training_set.txt',
                      'dir'  : 'python-corpus/cleaned/'},}
 
 class BigCodeDataset(IterableDataset):
-    def __init__(self, config, tokenizer, ttype='train', preprocess_code=True):
+    def __init__(self, config, tokenizer, ttype='train'):
         assert ttype in ['train', 'test', 'val']
         self.ttype = ttype
         self.config = config
         self.tokenizer = tokenizer
-        self.preprocess_code = preprocess_code
 
         self._setup()
 
@@ -57,7 +56,7 @@ class BigCodeDataset(IterableDataset):
             with open(dir_cache, 'rb') as f:
                 self.dirs = pickle.load(f)
 
-    def stream(self, add_special_tokens=False):
+    def stream(self, by_line=False):
         for dire in self.dirs:
             files = Path(dire).rglob('*.py')
             files = list(map(lambda f: str(f.resolve()), files))
@@ -66,13 +65,19 @@ class BigCodeDataset(IterableDataset):
                     continue
                 with open(cfile,'r') as f:
                     code = f.read()
-                if self.preprocess_code:
-                    code = utils.preprocess_code(self.config, code)
                 
-                for line in code.splitlines():
-                    if line.strip() != '':
-                        line = self.tokenizer(line, add_special_tokens=add_special_tokens)
-                        yield line
+                code = utils.preprocess_code(self.config, code, nlines=by_line)
+            
+                if by_line:
+                    for line in code.splitlines():
+                        if line.strip() != '':
+                            line = self.tokenizer(line, add_special_tokens=False)
+                            yield line
+                else:
+                    tokenized_texts = self.tokenizer(code, add_special_tokens=False)
+                    tokenized_texts = utils.group_texts(tokenized_texts, block_size=self.tokenizer.model_max_length)
+                    for i in range(len(tokenized_texts['input_ids'])):
+                        yield {k: t[i] for k, t in tokenized_texts.items()}
     
     def __iter__(self):
         return cycle(self.stream())

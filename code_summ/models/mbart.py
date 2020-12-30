@@ -11,6 +11,7 @@ from transformers import MBartConfig, MBartTokenizer, MBartForConditionalGenerat
 class MBartCode(pl.LightningModule):
     def __init__(self, config, tokenizer, model_config=None):
         super(MBartCode, self).__init__()
+        # TODO - Change this to load a Bart trained on code and take a pretrained bart and apply logic
         ''' NOTE - All 3 Barts use the same config and tokenizer. See logic in the notes. '''
 
         self.config = config

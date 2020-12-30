@@ -19,10 +19,9 @@ URLS = {'javascript' : '',
         'python' : 'http://files.srl.inf.ethz.ch/data/py150_files.tar.gz'}
 
 class ETH150Dataset(IterableDataset):
-    def __init__(self, config, tokenizer, preprocess_code=True):
+    def __init__(self, config, tokenizer):
         self.config = config
         self.tokenizer = tokenizer
-        self.preprocess_code = preprocess_code
 
         self._setup()
 
@@ -40,19 +39,25 @@ class ETH150Dataset(IterableDataset):
             with open(file_cache, 'rb') as f:
                 self.files = pickle.load(f)
 
-    def stream(self, add_special_tokens=False):
+    def stream(self, by_line=False):
         for cfile in self.files:
             if not(os.path.exists(cfile) and os.path.isfile(cfile)):
                 continue
             with open(cfile,'r') as f:
                 code = f.read()
-            if self.preprocess_code:
-                code = utils.preprocess_code(self.config, code)
+
+            code = utils.preprocess_code(self.config, code, nlines=by_line)
             
-            for line in code.splitlines():
-                if line.strip() != '':
-                    line = self.tokenizer(line, add_special_tokens=add_special_tokens)
-                    yield line
+            if by_line:
+                for line in code.splitlines():
+                    if line.strip() != '':
+                        line = self.tokenizer(line, add_special_tokens=False)
+                        yield line
+            else:
+                tokenized_texts = self.tokenizer(code, add_special_tokens=False)
+                tokenized_texts = utils.group_texts(tokenized_texts, block_size=self.tokenizer.model_max_length)
+                for i in range(len(tokenized_texts['input_ids'])):
+                    yield {k: t[i] for k, t in tokenized_texts.items()}
 
     def __iter__(self):
         return cycle(self.stream())
@@ -102,6 +107,6 @@ if __name__ == '__main__':
     #print(next(iter(train_loader)))
     # print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])
     for i, sample in enumerate(train_loader):
-        if i == 20:
+        if i == 10:
             break
         print([datamodule.tokenizer.decode(i) for i in sample['input_ids']])

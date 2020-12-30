@@ -13,17 +13,18 @@ import dataset_scripts.utils as utils
 from dataset_scripts.bigcode import BigCodeDataset
 from dataset_scripts.codesearch_uni import CodeSearchNetUnimodalDataset
 from dataset_scripts.eth150 import ETH150Dataset
+from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataset
 
 DATASETS = {'bigcode': BigCodeDataset, 'codesearch': CodeSearchNetUnimodalDataset, 'eth150': ETH150Dataset}
 
 class AllUnimodalDataset(IterableDataset):
-    def __init__(self, config, datasets, tokenizer, preprocess_code=True):
+    def __init__(self, config, datasets, tokenizer):
         self.config = config
         self.tokenizer = tokenizer
 
-        self._setup(datasets, preprocess_code)
+        self._setup(datasets)
 
-    def _setup(self, datasets, preprocess_code):
+    def _setup(self, datasets):
         self.datasets = []
 
         for ds_name in datasets:
@@ -32,7 +33,7 @@ class AllUnimodalDataset(IterableDataset):
             config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
             config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
             
-            ds = DATASETS[ds_name](config, self.tokenizer, preprocess_code=preprocess_code)
+            ds = DATASETS[ds_name](config, self.tokenizer)
             ds = iter(ds)
             self.datasets.append(ds)
 
@@ -61,9 +62,22 @@ class AllUnimodalDataModule(pl.LightningDataModule):
         return DataLoader(self.train_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer)) 
         # TODO or default_data_collator (others below too)
 
+    def val_dataloader(self, batch_size=None):
+        batch_size = self.config.batch_size if batch_size is None else batch_size
+        return DataLoader(self.val_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer))
+
+    def test_dataloader(self, batch_size=None):
+        batch_size = self.config.batch_size if batch_size is None else batch_size
+        return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer))
+
     def setup(self, stage=None):
         if stage == 'fit' or stage == None:
             self.train_dataset = AllUnimodalDataset(self.config, self.datasets, self.tokenizer)
+            # NOTE - uses multimodal dataset - change it later on.
+            self.val_dataset = CodeSearchNetMultimodalDataset(self.config, [self.tokenizer], code_only=True, ttype='val')
+
+        if stage == 'test' or stage == None:
+            self.test_dataset = CodeSearchNetMultimodalDataset(self.config, [self.tokenizer], code_only=True, ttype='test')
 
 if __name__ == '__main__':
     print("Testing all_unimodal.py")
