@@ -131,6 +131,9 @@ def download_dataset(config):
         dir_p = f.replace('.tar.gz', '/')
         shutil.unpack_archive(f, dir_p)
 
+        if 'corpus' in dir_p:
+            utils.change_subdir_sys(os.path.join(dir_p, 'cleaned/'))
+
     print("=> Download completed.")
 
 if __name__ == '__main__':

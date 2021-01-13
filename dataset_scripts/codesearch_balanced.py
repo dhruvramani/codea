@@ -8,77 +8,69 @@ from more_itertools import chunked
 import torch
 import pytorch_lightning as pl 
 
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
 
-# Copy code used in CodeBert. Then, download code_search_net dataset manually, write scripts for training self.tokenizers, balancing data and classes for code-search etc.
-# Tokenizer lib - https://colab.research.google.com/github/huggingface/transformers/blob/master/notebooks/01-training-self.tokenizers.ipynb
+''' SOURCE https://github.com/microsoft/CodeBERT/blob/master/codesearch/utils.py '''
 
-class CodeSearchBalancedDataModule(pl.LightningDataModule):
-    def __init__(self, config):
-        ''' CodeSearchNet data balanced for classification - from the CodeBERT repo. '''
-        super().__init__()
+class CodeSearchBalancedDataset(Dataset):
+    def __init__(self, config, tokenizer, ttype):
         self.config = config
-        self.tokenizer = AutoTokenizer.from_pretrained('microsoft/codebert-base')
+        self.tokenizer = tokenizer
 
         self.processor = CodesearchProcessor()
         self.files = {'train' : 'train.txt', 'dev' : 'valid.txt', 'test' : 'test/batch_0.txt'}
         self.get_examples = {'train' : self.processor.get_train_examples, 'dev' : self.processor.get_dev_examples, 'test' : self.processor.get_test_examples}
-
-    def setup(self, stage=None):
-        if stage == 'fit' or stage == None:
-            self.train_dataset = self.get_dataset(ttype='train')
-            self.val_dataset = self.get_dataset(ttype='dev')
-
-        if stage == 'test' or stage == None:
-            self.test_dataset, self.test_instances = self.get_dataset(ttype='test')
-
-    def train_dataloader(self, batch_size=None):
-        batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.train_dataset, batch_size=batch_size)
-
-    def val_dataloader(self, batch_size=None):
-        batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.val_dataset, batch_size=batch_size)
-
-    def test_dataloader(self, batch_size=32):
-        batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.test_dataset, batch_size=batch_size)
-
-    def get_dataset(self, ttype='train'):
-        file_name = self.files[ttype].split('.')[0]
-        cached_features_file = os.path.join(self.config.cache_path, 'cached_{}_{}_{}'.format(ttype, file_name, self.config.max_seq_length))
-        use_cached = os.path.isfile(cached_features_file)
+        self.cache_dir = os.path.join(self.config.cache_path, 'cached_{}_{}_{}/'.format(ttype, self.files[ttype].split('.')[0], self.config.max_seq_length))
         
-        if use_cached:
-            try :
-                print("Loading Cached file {}".format(cached_features_file))
-                features = torch.load(cached_features_file)
-                if ttype == 'test':
-                    examples, instances = self.processor.get_test_examples(self.config.data_path, self.files['test'])
-            except:
-                use_cached = False
+        self.cache_len = 1000
+        self.prev_cache_idx = -1
+        self.cache = None
+
+        self._setup(ttype)
+
+    def _setup(self, ttype='train'):
+        cache_contents = os.listdir(self.cache_dir)
         
-        if not use_cached:
-            print("Cached file not present, creating dataset.")
+        if cache_contents != []:
+            self.len = torch.load(os.path.join(self.cache_dir, 'len'))
+        else:
+            print("D CS-B - Creating cache.")
             label_list = self.processor.get_labels()
             examples = self.get_examples[ttype](self.config.data_path, self.files[ttype])
             if ttype == 'test':
-                examples, instances = examples
+                examples, _ = examples
 
             features = self.convert_examples_to_features(examples, label_list, self.config.max_seq_length, cls_token=self.tokenizer.cls_token, sep_token=self.tokenizer.sep_token)
-            torch.save(features, cached_features_file)
+            self.len = len(features)
 
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-        all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
+            torch.save(self.len, os.path.join(self.cache_dir, 'len'))
 
-        dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-        if (ttype == 'test'):
-            return dataset, instances
-        else:
-            return dataset
+            j = 0
+            for i in range(self.len // self.cache_len):
+                cached_features_file = os.path.join(self.cache_dir, f'{i}.pt')
+                torch.save(features[i * self.cache_len : (i+1) * self.cache_len], cached_features_file)
+                j = i + 1
+
+            if j * self.cache_len < self.len:
+                cached_features_file = os.path.join(self.cache_dir, f'{j}.pt')
+                torch.save(features[j * self.cache_len :], cached_features_file)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        cache_idx = idx // self.cache_len
+        if cache_idx != self.prev_cache_idx:
+            cache_file = os.path.join(self.cache_dir, f'{cache_idx}.pt')
+            self.cache = torch.load(cache_file)
+            self.prev_cache_idx = cache_idx
+
+        content = self.cache[idx % self.cache_len]
+        content = (content.input_ids, content.input_mask, content.segment_ids, content.label_id)
+        content = (torch.LongTensor(c) for c in content)
+        
+        return content  
 
     def convert_examples_to_features(self, examples, label_list, max_seq_length,
                                  cls_token_at_end=False, pad_on_left=False,
@@ -179,6 +171,33 @@ class CodeSearchBalancedDataModule(pl.LightningDataModule):
             features.append(InputFeatures(input_ids=input_ids, input_mask=input_mask,
                               segment_ids=segment_ids, label_id=label_id))
         return features
+
+class CodeSearchBalancedDataModule(pl.LightningDataModule):
+    def __init__(self, config):
+        ''' CodeSearchNet data balanced for classification - from the CodeBERT repo. '''
+        super().__init__()
+        self.config = config
+        self.tokenizer = AutoTokenizer.from_pretrained('microsoft/codebert-base')
+
+    def setup(self, stage=None):
+        if stage == 'fit' or stage == None:
+            self.train_dataset = CodeSearchBalancedDataset(self.config, self.tokenizer, ttype='train')
+            self.val_dataset = CodeSearchBalancedDataset(self.config, self.tokenizer, ttype='dev')
+
+        if stage == 'test' or stage == None:
+            self.test_dataset = CodeSearchBalancedDataset(self.config, self.tokenizer, ttype='test')
+
+    def train_dataloader(self, batch_size=None):
+        batch_size = self.config.batch_size if batch_size is None else batch_size
+        return DataLoader(self.train_dataset, batch_size=batch_size)
+
+    def val_dataloader(self, batch_size=None):
+        batch_size = self.config.batch_size if batch_size is None else batch_size
+        return DataLoader(self.val_dataset, batch_size=batch_size)
+
+    def test_dataloader(self, batch_size=32):
+        batch_size = self.config.batch_size if batch_size is None else batch_size
+        return DataLoader(self.test_dataset, batch_size=batch_size)
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
@@ -293,8 +312,7 @@ def download_dataset(config):
     
     print("Downloaded.")
 
-def preprocess_test_data(config, test_batch_size=1000):
-
+def preprocess_test_data(config, test_batch_size=self.cache_len):
     def format_str(string):
         for char in ['\r\n', '\r', '\n']:
             string = string.replace(char, ' ')
@@ -336,13 +354,3 @@ def preprocess_test_data(config, test_batch_size=1000):
         print(file_path)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.writelines('\n'.join(examples))
-
-if __name__ == '__main__':
-    module_dir = os.path.dirname(os.path.dirname((os.path.abspath(__file__))))
-    sys.path.append(module_dir)
-
-    from config import get_config
-    config = get_config()
-
-    #download_dataset(config)
-    preprocess_test_data(config)

@@ -95,6 +95,8 @@ def download_dataset(config):
     file_path = os.path.join(config.data_path, 'data.tar.gz')
     shutil.unpack_archive(file_path, file_path.replace('.tar.gz', '/'))
 
+    utils.change_subdir_sys(file_path.replace('.tar.gz', '/'))
+
     print("Downloading and processing completed.")
 
 if __name__ == '__main__':

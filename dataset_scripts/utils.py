@@ -117,7 +117,7 @@ def get_test_config(model, dataset):
     
     return config
 
-def clean_gdrive_data(path):
+def change_subdir_sys(path):
     # Changes the sub-directory structure to avoid Colab timeouts.
     from google.colab import drive
     from string import digits, ascii_uppercase, ascii_lowercase
@@ -126,9 +126,9 @@ def clean_gdrive_data(path):
     chars = digits + ascii_lowercase + ascii_uppercase 
 
     for char in chars:
+        files = glob.glob(os.path.join(path, f'{char}*'))
         dest = os.path.join(path, f'_{char}/')
         os.mkdir(dest)
-        files = glob.glob(os.path.join(path, f'{char}*'))
         for f in files:
             shutil.move(f, dest)
         print(dest)

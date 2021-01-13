@@ -23,6 +23,11 @@ URLS = {'javascript' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v
         'java' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v2/java.zip',
         'go' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v2/go.zip',}
 
+# SOURCE : https://github.com/github/CodeSearchNet/blob/master/notebooks/ExploreData.ipynb
+LEN = {'test': {'go': 14291, 'java': 26909, 'javascript': 6483, 'php' : 28391, 'python' : 22176, 'ruby' : 2279},
+       'train': {'go': 317832, 'java': 454451, 'javascript': 123889, 'php': 523712, 'python': 412178, 'ruby': 48791},
+       'valid': {'go': 14242, 'java': 15328, 'javascript': 8253, 'php': 26015, 'python': 23107, 'ruby': 2209}}
+
 class CodeSearchNetMultimodalDataset(Dataset):
     def __init__(self, config, tokenizers, ttype='train', code_only=False):
         assert ttype in ['train', 'test', 'val']
@@ -32,19 +37,27 @@ class CodeSearchNetMultimodalDataset(Dataset):
         self.eng_tokenizer = tokenizers[-1] # NOTE : if common tokenizer, pass (tokenizer)
         self.code_only = code_only
 
+        self.files = sorted(Path(self.config.data_path).glob('**/*{}*.gz'.format(self.ttype)))
+        self.file_idx = 0
+        self.prev_lens = 0
+
         self._setup()
 
     def _setup(self):
-        files = sorted(Path(self.config.data_path).glob('**/*{}*.gz'.format(self.ttype)))
         columns = ['code', 'docstring']
-        self.data = pd.concat([pd.read_json(f, orient='records', compression='gzip', lines=True)[columns] 
-                      for f in files], sort=False) 
-        print("D CS-Multi : Loaded.")   
+        self.data = pd.read_json(self.files[self.file_idx], orient='records', compression='gzip', lines=True)[columns] 
     
     def __len__(self):
-        return len(self.data.index)
+        return LEN[self.ttype][self.config.prog_lang]
 
     def __getitem__(self, idx):
+        idx = idx - self.prev_lens
+        if idx >= len(self.data.index):
+            self.prev_lens += len(self.data.index)
+            self.file_idx += 1
+            self.file_idx = self.file_idx % len(self.files)
+            self._setup()
+
         row = self.data.iloc[idx]
         code = row['code']
         

@@ -1,7 +1,6 @@
 import os
 import gzip
 import pickle
-from peewee import *
 
 from itertools import cycle
 
@@ -9,7 +8,7 @@ import torch
 import transformers
 import pytorch_lightning as pl
 
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorWithPadding
 
 import dataset_scripts.utils as utils #dataset_scripts
@@ -18,7 +17,7 @@ from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataset #dat
 
 FILES = {'python': 'python_dedupe_definitions_v2.pkl', }
 
-class CodeSearchNetUnimodalDataset(IterableDataset):
+class CodeSearchNetUnimodalDataset(Dataset):
     def __init__(self, config, tokenizer):
         '''
         Unimodal code data, split by lines - for whole functions, use multimodal.
@@ -27,52 +26,66 @@ class CodeSearchNetUnimodalDataset(IterableDataset):
         '''
         self.config = config
         self.tokenizer = tokenizer
-        self.cache_query = Query()
+        self.config.cache_path = os.path.join(self.config.cache_path, 'unimodal/')
+
+        self.cache_len = 10000
+        self.prev_cache_idx = -1
+        self.cache = None
 
         self._setup()
 
     def _setup(self): 
-        cache_file = os.path.join(self.config.cache_path, 'cache.json') 
-        cache_exists = os.path.isfile(cache_file)
-        self.cache = TinyDB(cache_file)
-
-        if not cache_exists:
+        cache_contents = os.listdir(self.config.cache_path)
+        
+        if cache_contents != []:
+            self.len = torch.load(os.path.join(self.config.cache_path, 'len'))
+        else:
             print("D CS-Uni : Creating cache.")
-            f_path = os.path.join(self.config.data_path, FILES[self.config.prog_lang])
-            with open(f_path, 'rb') as f:
+            d_path = os.path.join(self.config.data_path, FILES[self.config.prog_lang])
+            with open(d_path, 'rb') as f:
                 data = pickle.load(f)
-            data_len = len(data)
-            
-            for i in range(data_len):
-                self.cache.insert({'idx' : i, 'function' : data[i]['function']})
-            
+            self.len = len(data)
+
+            torch.save(self.len, os.path.join(self.config.cache_path, 'len'))
+
+            j = 0
+            for i in range(self.len // self.cache_len):
+                cached_features_file = os.path.join(self.config.cache_path, f'{i}.pt')
+                features = []
+                for k in range(i * self.cache_len, (i+1) * self.cache_len):
+                    func = self.process_data(data[k]['function'])
+                    features.extend(func)
+                torch.save(features, cached_features_file)
+                j = i + 1
+
+            if j * self.cache_len < self.len:
+                cached_features_file = os.path.join(self.config.cache_path, f'{j}.pt')
+                features = []
+                for k in range(j * self.cache_len, self.len):
+                    func = self.process_data(data[k]['function'])
+                    features.extend(func)
+                torch.save(features, cached_features_file)
+
             del data
-            
-        print("D CS-Uni : Loaded data.")
 
-    def stream(self, by_line=False):
-        dict_idx = 0
-        try : # dirty HACK
-            while True:
-                func = self.cache.search(self.cache_query.idx == dict_idx)[0]['function']
-                dict_idx += 1
-                func = utils.preprocess_code(self.config, func, nlines=by_line)
-                
-                if by_line:
-                    for line in func.splitlines():
-                        if line.strip() != '':
-                            line = self.tokenizer(line, add_special_tokens=False)
-                            yield line
-                else:
-                    tokenized_texts = self.tokenizer(func, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
-                    tokenized_texts = utils.group_texts(tokenized_texts, block_size=utils.MAX_LENS[self.config.model])
-                    for i in range(len(tokenized_texts['input_ids'])):
-                        yield {k: t[i] for k, t in tokenized_texts.items()}
-        except:
-            pass
+    def __len__(self):
+        return self.len
 
-    def __iter__(self):
-        return cycle(self.stream())
+    def __getitem__(self, idx):
+        cache_idx = idx // self.cache_len
+        if cache_idx != self.prev_cache_idx:
+            cache_file = os.path.join(self.config.cache_path, f'{cache_idx}.pt')
+            self.cache = torch.load(cache_file)
+            self.prev_cache_idx = cache_idx
+
+        content = self.cache[idx % self.cache_len]
+        return content             
+
+    def process_data(self, raw_data):
+        func = utils.preprocess_code(self.config, raw_data, nlines=False)
+        tokenized_texts = self.tokenizer(func, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
+        tokenized_texts = utils.group_texts(tokenized_texts, block_size=utils.MAX_LENS[self.config.model])
+        return [{k: t[i] for k, t in tokenized_texts.items()} for i in range(len(tokenized_texts['input_ids']))]
 
 class CodeSearchNetUnimodalDataModule(pl.LightningDataModule):
     def __init__(self, config):

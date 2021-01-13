@@ -5,6 +5,8 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 from transformers import RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification
 
+''' SOURCE https://github.com/microsoft/CodeBERT/blob/master/codesearch/run_classifier.py '''
+
 class PretrainedCodeBERT(pl.LightningModule):
     def __init__(self, config, total_steps, model_config=None, tokenizer=None):
         super(PretrainedCodeBERT, self).__init__()
