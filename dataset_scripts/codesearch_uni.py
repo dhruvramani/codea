@@ -1,5 +1,8 @@
 import os
+import gzip
 import pickle
+from peewee import *
+
 from itertools import cycle
 
 import torch
@@ -9,9 +12,9 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import DataCollatorWithPadding
 
-import dataset_scripts.utils as utils
-from dataset_scripts.codesearch_multi import URLS, download_dataset
-from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataset
+import dataset_scripts.utils as utils #dataset_scripts
+from dataset_scripts.codesearch_multi import URLS, download_dataset #dataset_scripts
+from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataset #dataset_scripts
 
 FILES = {'python': 'python_dedupe_definitions_v2.pkl', }
 
@@ -24,30 +27,49 @@ class CodeSearchNetUnimodalDataset(IterableDataset):
         '''
         self.config = config
         self.tokenizer = tokenizer
+        self.cache_query = Query()
 
         self._setup()
 
-    def _setup(self):
-        f_path = os.path.join(self.config.data_path, FILES[self.config.prog_lang])
-        with open(f_path, 'rb') as f:
-            self.data = pickle.load(f)
-            self.dict_len = len(self.data)
+    def _setup(self): 
+        cache_file = os.path.join(self.config.cache_path, 'cache.json') 
+        cache_exists = os.path.isfile(cache_file)
+        self.cache = TinyDB(cache_file)
+
+        if not cache_exists:
+            print("D CS-Uni : Creating cache.")
+            f_path = os.path.join(self.config.data_path, FILES[self.config.prog_lang])
+            with open(f_path, 'rb') as f:
+                data = pickle.load(f)
+            data_len = len(data)
+            
+            for i in range(data_len):
+                self.cache.insert({'idx' : i, 'function' : data[i]['function']})
+            
+            del data
+            
+        print("D CS-Uni : Loaded data.")
 
     def stream(self, by_line=False):
-        for dict_idx in range(self.dict_len):
-            func = self.data[dict_idx]['function']
-            func = utils.preprocess_code(self.config, func, nlines=by_line)
-            
-            if by_line:
-                for line in func.splitlines():
-                    if line.strip() != '':
-                        line = self.tokenizer(line, add_special_tokens=False)
-                        yield line
-            else:
-                tokenized_texts = self.tokenizer(func, add_special_tokens=False)
-                tokenized_texts = utils.group_texts(tokenized_texts, block_size=self.tokenizer.model_max_length)
-                for i in range(len(tokenized_texts['input_ids'])):
-                    yield {k: t[i] for k, t in tokenized_texts.items()}
+        dict_idx = 0
+        try : # dirty HACK
+            while True:
+                func = self.cache.search(self.cache_query.idx == dict_idx)[0]['function']
+                dict_idx += 1
+                func = utils.preprocess_code(self.config, func, nlines=by_line)
+                
+                if by_line:
+                    for line in func.splitlines():
+                        if line.strip() != '':
+                            line = self.tokenizer(line, add_special_tokens=False)
+                            yield line
+                else:
+                    tokenized_texts = self.tokenizer(func, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
+                    tokenized_texts = utils.group_texts(tokenized_texts, block_size=utils.MAX_LENS[self.config.model])
+                    for i in range(len(tokenized_texts['input_ids'])):
+                        yield {k: t[i] for k, t in tokenized_texts.items()}
+        except:
+            pass
 
     def __iter__(self):
         return cycle(self.stream())

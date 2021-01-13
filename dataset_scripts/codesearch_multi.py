@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorForTokenClassification
 
-import dataset_scripts.utils as utils
+import dataset_scripts.utils as utils #dataset_scripts
 
 # TODO - Add option for code2nl or nl2code
 
@@ -37,21 +37,21 @@ class CodeSearchNetMultimodalDataset(Dataset):
     def _setup(self):
         files = sorted(Path(self.config.data_path).glob('**/*{}*.gz'.format(self.ttype)))
         columns = ['code', 'docstring']
-        data = pd.concat([pd.read_json(f, orient='records', compression='gzip', lines=True)[columns] 
-                      for f in files], sort=False)
-        self.dataset = datasets.Dataset.from_pandas(data)    
+        self.data = pd.concat([pd.read_json(f, orient='records', compression='gzip', lines=True)[columns] 
+                      for f in files], sort=False) 
+        print("D CS-Multi : Loaded.")   
     
     def __len__(self):
-        return len(self.dataset)
+        return len(self.data.index)
 
     def __getitem__(self, idx):
-        row = self.dataset[idx]
+        row = self.data.iloc[idx]
         code = row['code']
         
         code = utils.preprocess_code(self.config, code, nlines=False)
-        code = self.code_tokenizer(code, add_special_tokens=False)
+        code = self.code_tokenizer(code, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
         
-        if not code_only:
+        if not self.code_only:
             docstring = row['docstring']
             docstring = self.eng_tokenizer(docstring, add_special_tokens=False)
             code['labels'] = docstring['input_ids']

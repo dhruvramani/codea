@@ -18,7 +18,7 @@ def train(config):
     resume_path = ckpt_callback.best_model_path if (config.resume_best_checkpoint and ckpt_callback.best_model_path != '') \
                     else None
 
-    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=resume_path, callbacks=[ckpt_callback],
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=resume_path, callbacks=[ckpt_callback], precision=config.precision,
                 tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus)
     
     trainer.fit(model, datamodule=datamodule)

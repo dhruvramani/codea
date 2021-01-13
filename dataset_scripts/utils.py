@@ -1,18 +1,26 @@
 import os
 import sys
 import re
+import glob
+import shutil
 import pickle
 import autopep8
 import transformers
 
+from transformers import GPT2TokenizerFast
 from transformers import AutoTokenizer, RobertaTokenizer
 
-SPECIAL_TAGS = {'bof' : '<BOF>', 'eof': '<EOF>'|}
-TAGS = {'eol' : '<EOL>', 'tab': '<INDENT>', 'comment': '<COMMENT>', 'num': '<NUM_LIT>', 'str': '<STR_LIT>',}
+MAX_LENS = {'gpt2': 1024, 'transfoxl': 1024}
 
-PY_TAGS = {'<STR_LIT:__main__>': r"__main__", '<STR_LIT:POST>': r'post', '<STR_LIT:GET>': r'get', '<STR_LIT:URL>': r"(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})", 
-            '<STR_LIT:PATH>': r'(.*)\/([^/]*)', '.split(<STR_LIT:SPLIT>)': r".split\(['\"](.*)['\"]\)", '<STR_LIT:FILEOP>': r'[rwa]{1}[b+]{0,2}', '<STR_LIT:UTF-8>': r'utf-8', '<STR_LIT:JSON>': r'\{.*\:\{.*\:.*\}\}', '<STR_LIT:RE>': r"r['\"](.*)['\"]",
-           '<NUM_LIT:FLOAT>': r'[-]*\d*\.\d*', '<NUM_LIT:SCI>': r'[-]*\d+e[-]*\d*', '<NUM_LIT:BOOL>': r'[01]{1}'}
+SPECIAL_TAGS = {'bof' : '<BOF>', 'eof': '<EOF>'}
+TAGS = {'eol' : '<NEWLINE>', 'tab': '<INDENT>', 'comment': '<COMMENT>', 'num': '<NUM_LIT>', 'str': '<STR_LIT>',}
+
+PY_TAGS = {'<STR_LIT:__main__>': r"__main__", '<STR_LIT:POST>': r'post', '<STR_LIT:GET>': r'get', 
+            '<STR_LIT:URL>': r"(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})", 
+            '<STR_LIT:PATH>': r'(.*)\/([^/]*)', '.split(<STR_LIT:SPLIT>)': r".split\(['\"](.*)['\"]\)", '<STR_LIT:FILEOP>': r'[rwa]{1}[b+]{0,2}',
+            '<STR_LIT:UTF-8>': r'utf-8', '<STR_LIT:JSON>': r'\{.*\:\{.*\:.*\}\}', '<STR_LIT:RE>': r"r['\"](.*)['\"]", 
+            '<STR_LIT:TRUE>': r'True', '<STR_LIT:FALSE>': r'False', '<STR_LIT:PKG>': r'[A-Za-z]*\.[A-Za-z.]+',
+            '<NUM_LIT:SCI>': r'[-]*\d+e[-]*\d*', '<NUM_LIT:BOOL>': r'[01]{1}'}
 
 def preprocess_code(config, code_block, nlines=True):
     # NOTE IMP - Maybe don't split it by new-line, just feed the whole corpus
@@ -26,19 +34,19 @@ def preprocess_code(config, code_block, nlines=True):
         code_block = re.sub(r'\n\"\"\".*?\"\"\"', TAGS['comment'], code_block, flags=re.DOTALL)
         code_block = re.sub(r'\n\'\'\'.*?\'\'\'', TAGS['comment'], code_block, flags=re.DOTALL)
         
-        for tag, rexp in PY_TAGS:
+        for tag, rexp in PY_TAGS.items():
             if 'STR' in tag and ('SPLIT' not in tag) and ('RE' not in tag): # dirty HACK
                 rexp = r"['\"]" + rexp + r"['\"]"
             code_block = re.sub(rexp, tag, code_block, flags=re.IGNORECASE)
 
-        code_block = re.sub(r'[-+]?[0-9]+', TAGS['num'], code_block)
+        code_block = re.sub(r'[+-]?([0-9]*[.])?[0-9]+', TAGS['num'], code_block)
         code_block = re.sub(r"([bruf]*)(\"\"\"|'''|\"|')(?:(?!\2)(?:\\.|[^\\]))*\2", 
                             TAGS['str'], code_block, flags=re.DOTALL)
 
     eol_tag = TAGS['eol'] + '\n' if nlines else TAGS['eol']
     code_block = eol_tag.join([line for line in code_block.split('\n') if line.strip()]) 
 
-    bof_tag, eof_tag = TAGS['bof'], TAGS['bof']
+    bof_tag, eof_tag = SPECIAL_TAGS['bof'], SPECIAL_TAGS['eof']
     if config.model == 'gpt2':
         bof_tag, eof_tag = '', '<|endoftext|>'
     
@@ -47,13 +55,13 @@ def preprocess_code(config, code_block, nlines=True):
 
 def group_texts(tokenized_texts, block_size):
     # Source : https://github.com/huggingface/transformers/blob/ef93a254275c8d79a964564202979a169599f96d/examples/language-modeling/run_clm.py#L275
-    concatenated_tokenized_texts = {k: sum(tokenized_texts[k], []) for k in tokenized_texts.keys()}
-    total_length = len(concatenated_tokenized_texts[list(tokenized_texts.keys())[0]])
+    #concatenated_tokenized_texts = {k: sum(tokenized_texts[k], []) for k in tokenized_texts.keys()}
+    total_length = len(tokenized_texts[list(tokenized_texts.keys())[0]])
     total_length = (total_length // block_size) * block_size
 
     result = {
         k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-        for k, t in concatenated_tokenized_texts.items()
+        for k, t in tokenized_texts.items()
     }
     return result
 
@@ -61,9 +69,14 @@ def get_tokenizer(config):
     # REFER for model changing - https://github.com/huggingface/tokenizers/issues/247#issuecomment-675458087
     if config.prog_lang == 'python':
         try :
+            vocab_file = os.path.join(config.tokenizer_path, 'vocab.json')
+            merges_file = os.path.join(config.tokenizer_path, 'merges.txt')
+            # if config.model == 'gpt2':
+            #     tokenizer = GPT2TokenizerFast(vocab_file=vocab_file, merges_file=merges_file)
+            # else:
             tokenizer = RobertaTokenizer.from_pretrained(config.tokenizer_path)
         except:
-            print("UTILS - Creating new tokenizer.")
+            print("D UTILS : Creating new tokenizer.")
             tokenizer = RobertaTokenizer.from_pretrained('mrm8488/CodeBERTaPy')
             tokenizer.add_tokens(list(TAGS.values()))
             tokenizer.add_tokens(list(PY_TAGS.keys()))
@@ -103,6 +116,24 @@ def get_test_config(model, dataset):
     pathlib.Path(config.tokenizer_path).mkdir(parents=True, exist_ok=True)
     
     return config
+
+def clean_gdrive_data(path):
+    # Changes the sub-directory structure to avoid Colab timeouts.
+    from google.colab import drive
+    from string import digits, ascii_uppercase, ascii_lowercase
+
+    drive.mount("/content/drive")
+    chars = digits + ascii_lowercase + ascii_uppercase 
+
+    for char in chars:
+        dest = os.path.join(path, f'_{char}/')
+        os.mkdir(dest)
+        files = glob.glob(os.path.join(path, f'{char}*'))
+        for f in files:
+            shutil.move(f, dest)
+        print(dest)
+
+    drive.flush_and_unmount()
 
 '''
 def index_file(path, cache_path):

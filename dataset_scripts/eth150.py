@@ -35,7 +35,7 @@ class ETH150Dataset(IterableDataset):
             with open(file_cache, 'wb') as f:
                 pickle.dump(self.files, f)
         else:
-            print("ETH150 - Using cached file.")
+            print("D ETH150 : Using cached file.")
             with open(file_cache, 'rb') as f:
                 self.files = pickle.load(f)
 
@@ -54,8 +54,8 @@ class ETH150Dataset(IterableDataset):
                         line = self.tokenizer(line, add_special_tokens=False)
                         yield line
             else:
-                tokenized_texts = self.tokenizer(code, add_special_tokens=False)
-                tokenized_texts = utils.group_texts(tokenized_texts, block_size=self.tokenizer.model_max_length)
+                tokenized_texts = self.tokenizer(code, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
+                tokenized_texts = utils.group_texts(tokenized_texts, block_size=utils.MAX_LENS[self.config.model])
                 for i in range(len(tokenized_texts['input_ids'])):
                     yield {k: t[i] for k, t in tokenized_texts.items()}
 
@@ -103,10 +103,11 @@ if __name__ == '__main__':
 
     datamodule = ETH150DataModule(config)
     datamodule.setup(stage='fit')
-    train_loader = datamodule.train_dataloader(batch_size=1)
+    train_loader = datamodule.train_dataloader(batch_size=5)
     #print(next(iter(train_loader)))
     # print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])
     for i, sample in enumerate(train_loader):
         if i == 10:
             break
-        print([datamodule.tokenizer.decode(i) for i in sample['input_ids']])
+        op = [datamodule.tokenizer.decode([i]) for i in sample['input_ids'][0]]
+        print(op)

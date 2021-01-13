@@ -27,7 +27,8 @@ def get_config():
     # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)
     parser.add_argument('--gpus', type=int, default=None)
-    parser.add_argument('--auto_select_gpus', type=str2bool, default=True)
+    parser.add_argument('--auto_select_gpus', type=str2bool, default=False)
+    parser.add_argument('--precision', type=int, default=32)
 
     # NOTE - Lightning trainer args - not used yet - very handy tho, use later.
     parser.add_argument('--auto_scale_batch_size', type=str, default='binsearch')

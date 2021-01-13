@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import DataCollatorWithPadding
 
-import dataset_scripts.utils as utils 
+import dataset_scripts.utils as utils
 
 # NOTE - IMP, old data, ~2015. Not to be used solely.
 
@@ -52,12 +52,16 @@ class BigCodeDataset(IterableDataset):
             with open(dir_cache, 'wb') as f:
                 pickle.dump(self.dirs, f)
         else:
-            print('BIGCODE - Using cache.')
+            print('D BIGCODE : Using cache.')
             with open(dir_cache, 'rb') as f:
                 self.dirs = pickle.load(f)
 
     def stream(self, by_line=False):
         for dire in self.dirs:
+            # NOTE - writing this coz of modified repo structure
+            dir_struct = dire.split('cleaned/')
+            dir_struct[1] = '_{}/{}'.format(dir_struct[1][0] , dir_struct[1])
+            dire = 'cleaned/'.join(dir_struct)
             files = Path(dire).rglob('*.py')
             files = list(map(lambda f: str(f.resolve()), files))
             for cfile in files:
@@ -74,8 +78,8 @@ class BigCodeDataset(IterableDataset):
                             line = self.tokenizer(line, add_special_tokens=False)
                             yield line
                 else:
-                    tokenized_texts = self.tokenizer(code, add_special_tokens=False)
-                    tokenized_texts = utils.group_texts(tokenized_texts, block_size=self.tokenizer.model_max_length)
+                    tokenized_texts = self.tokenizer(code, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
+                    tokenized_texts = utils.group_texts(tokenized_texts, block_size=utils.MAX_LENS[self.config.model])
                     for i in range(len(tokenized_texts['input_ids'])):
                         yield {k: t[i] for k, t in tokenized_texts.items()}
     
@@ -137,4 +141,9 @@ if __name__ == '__main__':
     datamodule.setup(stage='fit')
     train_loader = datamodule.train_dataloader(batch_size=1)
     # print(next(iter(train_loader)))
-    print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])
+    #print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])
+    for i, sample in enumerate(train_loader):
+        if i == 2:
+            break
+        op = [datamodule.tokenizer.decode(i) for i in sample['input_ids']]
+        print(len(sample['input_ids'][0]), op)
