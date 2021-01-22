@@ -14,11 +14,9 @@ def train(config):
     model = select_model(config, datamodule)
     
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
-    ckpt_callback = ModelCheckpoint(monitor='val_f1', dirpath=config.models_save_path, save_top_k=3)
-    resume_path = ckpt_callback.best_model_path if (config.resume_best_checkpoint and ckpt_callback.best_model_path != '') \
-                    else None
+    ckpt_callback = ModelCheckpoint(monitor='val_f1', dirpath=config.models_save_path, save_top_k=3) #saves checkpoints every epoch
 
-    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=resume_path, callbacks=[ckpt_callback], precision=config.precision,
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=[ckpt_callback], precision=config.precision,
                 tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus)
     
     trainer.fit(model, datamodule=datamodule)

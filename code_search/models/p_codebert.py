@@ -32,10 +32,10 @@ class PretrainedCodeBERT(pl.LightningModule):
         return results
 
     def _step(self, batch, batch_idx):
-        inputs = {'input_ids': batch[0],
-          'attention_mask': batch[1],
+        inputs = {'input_ids': batch['input_ids'],
+          'attention_mask': batch['attn_mask'],
           'token_type_ids': None, # RoBERTa doesn’t have token_type_ids
-          'labels': batch[3]
+          'labels': batch['labels']
         }
         outputs = self.model(**inputs, return_dict=True)
 
@@ -52,7 +52,7 @@ class PretrainedCodeBERT(pl.LightningModule):
         outputs = self._step(val_batch, batch_idx)
         val_loss, logits = outputs['loss'], outputs['logits']
 
-        labels = val_batch[3]
+        labels = val_batch['labels']
         score = self.compute_metrics(logits, labels)
         score = {'val_' + key : score[key] for key in score}
 
@@ -64,7 +64,7 @@ class PretrainedCodeBERT(pl.LightningModule):
         outputs = self._step(test_batch, batch_idx)
         logits = outputs['logits']
         
-        labels = test_batch[3]
+        labels = test_batch['labels']
         score = self.compute_metrics(logits, labels)
         score = {'test_' + key : score[key] for key in score}
 

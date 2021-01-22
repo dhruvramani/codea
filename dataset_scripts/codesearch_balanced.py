@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
+from transformers import DataCollatorWithPadding
 
 ''' SOURCE https://github.com/microsoft/CodeBERT/blob/master/codesearch/utils.py '''
 
@@ -23,15 +24,19 @@ class CodeSearchBalancedDataset(Dataset):
         self.get_examples = {'train' : self.processor.get_train_examples, 'dev' : self.processor.get_dev_examples, 'test' : self.processor.get_test_examples}
         self.cache_dir = os.path.join(self.config.cache_path, 'cached_{}_{}_{}/'.format(ttype, self.files[ttype].split('.')[0], self.config.max_seq_length))
         
-        self.cache_len = 1000
+        self.cache_len = 5000
         self.prev_cache_idx = -1
         self.cache = None
 
         self._setup(ttype)
 
     def _setup(self, ttype='train'):
-        cache_contents = os.listdir(self.cache_dir)
-        
+        if not os.path.isdir(self.cache_dir):
+            os.mkdir(self.cache_dir)
+            cache_contents = []
+        else:
+            cache_contents = os.listdir(self.cache_dir)
+
         if cache_contents != []:
             self.len = torch.load(os.path.join(self.cache_dir, 'len'))
         else:
@@ -50,6 +55,7 @@ class CodeSearchBalancedDataset(Dataset):
             for i in range(self.len // self.cache_len):
                 cached_features_file = os.path.join(self.cache_dir, f'{i}.pt')
                 torch.save(features[i * self.cache_len : (i+1) * self.cache_len], cached_features_file)
+                print(i, " saved")
                 j = i + 1
 
             if j * self.cache_len < self.len:
@@ -67,9 +73,7 @@ class CodeSearchBalancedDataset(Dataset):
             self.prev_cache_idx = cache_idx
 
         content = self.cache[idx % self.cache_len]
-        content = (content.input_ids, content.input_mask, content.segment_ids, content.label_id)
-        content = (torch.LongTensor(c) for c in content)
-        
+        content = {'input_ids' : content.input_ids, 'attn_mask': content.input_mask, 'token_type_ids': content.segment_ids, 'label': content.label_id}#[float(str(content.label_id) == i) for i in self.processor.get_labels()]}
         return content  
 
     def convert_examples_to_features(self, examples, label_list, max_seq_length,
@@ -189,15 +193,15 @@ class CodeSearchBalancedDataModule(pl.LightningDataModule):
 
     def train_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.train_dataset, batch_size=batch_size)
+        return DataLoader(self.train_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer))
 
     def val_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.val_dataset, batch_size=batch_size)
+        return DataLoader(self.val_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer))
 
     def test_dataloader(self, batch_size=32):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.test_dataset, batch_size=batch_size)
+        return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer))
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
@@ -312,7 +316,7 @@ def download_dataset(config):
     
     print("Downloaded.")
 
-def preprocess_test_data(config, test_batch_size=self.cache_len):
+def preprocess_test_data(config, test_batch_size):
     def format_str(string):
         for char in ['\r\n', '\r', '\n']:
             string = string.replace(char, ' ')

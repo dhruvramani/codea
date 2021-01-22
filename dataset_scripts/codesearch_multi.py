@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorForTokenClassification
 
-import dataset_scripts.utils as utils #dataset_scripts
+import dataset_scripts.utils as utils
 
 # TODO - Add option for code2nl or nl2code
 
@@ -26,7 +26,7 @@ URLS = {'javascript' : 'https://s3.amazonaws.com/code-search-net/CodeSearchNet/v
 # SOURCE : https://github.com/github/CodeSearchNet/blob/master/notebooks/ExploreData.ipynb
 LEN = {'test': {'go': 14291, 'java': 26909, 'javascript': 6483, 'php' : 28391, 'python' : 22176, 'ruby' : 2279},
        'train': {'go': 317832, 'java': 454451, 'javascript': 123889, 'php': 523712, 'python': 412178, 'ruby': 48791},
-       'valid': {'go': 14242, 'java': 15328, 'javascript': 8253, 'php': 26015, 'python': 23107, 'ruby': 2209}}
+       'val': {'go': 14242, 'java': 15328, 'javascript': 8253, 'php': 26015, 'python': 23107, 'ruby': 2209}}
 
 class CodeSearchNetMultimodalDataset(Dataset):
     def __init__(self, config, tokenizers, ttype='train', code_only=False):

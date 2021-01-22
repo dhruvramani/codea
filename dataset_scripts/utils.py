@@ -57,6 +57,8 @@ def group_texts(tokenized_texts, block_size):
     # Source : https://github.com/huggingface/transformers/blob/ef93a254275c8d79a964564202979a169599f96d/examples/language-modeling/run_clm.py#L275
     #concatenated_tokenized_texts = {k: sum(tokenized_texts[k], []) for k in tokenized_texts.keys()}
     total_length = len(tokenized_texts[list(tokenized_texts.keys())[0]])
+    if total_length < block_size:
+        return {k: [t] for k, t in tokenized_texts.items()}
     total_length = (total_length // block_size) * block_size
 
     result = {

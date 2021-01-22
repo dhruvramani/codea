@@ -11,26 +11,22 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorWithPadding
 
-import dataset_scripts.utils as utils #dataset_scripts
-from dataset_scripts.codesearch_multi import URLS, download_dataset #dataset_scripts
-from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataset #dataset_scripts
+import dataset_scripts.utils as utils
+from dataset_scripts.codesearch_multi import URLS, download_dataset
+from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataset
 
 FILES = {'python': 'python_dedupe_definitions_v2.pkl', }
 
 class CodeSearchNetUnimodalDataset(Dataset):
     def __init__(self, config, tokenizer):
-        '''
-        Unimodal code data, split by lines - for whole functions, use multimodal.
-        # NOTE - Maybe, shift to datasets 
-        # TODO - Cache the data 
-        '''
         self.config = config
         self.tokenizer = tokenizer
-        self.config.cache_path = os.path.join(self.config.cache_path, 'unimodal/')
 
+        self.cache = None
         self.cache_len = 10000
         self.prev_cache_idx = -1
-        self.cache = None
+        
+        self.config.cache_path = os.path.join(self.config.cache_path, 'unimodal/')
 
         self._setup()
 
@@ -47,15 +43,16 @@ class CodeSearchNetUnimodalDataset(Dataset):
             self.len = len(data)
 
             torch.save(self.len, os.path.join(self.config.cache_path, 'len'))
-
+            print("Total files : ", self.len // self.cache_len)
             j = 0
-            for i in range(self.len // self.cache_len):
+            for i in range(112, self.len // self.cache_len):
                 cached_features_file = os.path.join(self.config.cache_path, f'{i}.pt')
                 features = []
                 for k in range(i * self.cache_len, (i+1) * self.cache_len):
                     func = self.process_data(data[k]['function'])
                     features.extend(func)
                 torch.save(features, cached_features_file)
+                print(i, " saved.")
                 j = i + 1
 
             if j * self.cache_len < self.len:
@@ -65,6 +62,7 @@ class CodeSearchNetUnimodalDataset(Dataset):
                     func = self.process_data(data[k]['function'])
                     features.extend(func)
                 torch.save(features, cached_features_file)
+                print(j)
 
             del data
 
@@ -130,4 +128,8 @@ if __name__ == '__main__':
     datamodule.setup(stage='fit')
     train_loader = datamodule.train_dataloader(batch_size=5)
     print(next(iter(train_loader)))
+    val_loader = datamodule.val_dataloader(batch_size=5)
+    print(next(iter(train_loader)))
+    print(next(iter(val_loader)))
+
     # print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])
