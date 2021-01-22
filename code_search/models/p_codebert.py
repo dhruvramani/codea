@@ -77,7 +77,7 @@ class PretrainedCodeBERT(pl.LightningModule):
             {'params': [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
         optimizer = transformers.AdamW(optimizer_grouped_parameters, lr=learning_rate, eps=eps)
-        lr_scheduler = transformers.get_linear_schedule_with_warmup(optimizer, self.config.warmup_steps, self.total_steps)
+        lr_scheduler = transformers.get_linear_schedule_with_warmup(optimizer, 0, self.total_steps)
         return [optimizer], [lr_scheduler]
     
     def backward(self, loss, optimizer, optimizer_idx, max_grad_norm=1.0):

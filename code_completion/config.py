@@ -23,7 +23,7 @@ def get_config():
     parser.add_argument('--dataset', type=str.lower, default='eth150', choices=['bigcode', 'codesearch', 'all', 'eth150'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
-    parser.add_argument('--resume_best_checkpoint', type=str2bool, default=True)
+    parser.add_argument('--resume_ckpt', type=str, default=None)
 
     # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)
@@ -43,7 +43,6 @@ def get_config():
 
     parser.add_argument('--n_epochs', type=int, default=8)    
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--warmup_steps', type=int, default=0)
     parser.add_argument('--max_seq_length', type=int, default=200)
 
     config = parser.parse_args()
@@ -53,6 +52,10 @@ def get_config():
     config.tokenizer_path = os.path.join(config.tokenizer_path, '{}/tokenizer/'.format(config.prog_lang))
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
+    config.resume_ckpt = os.path.join(config.models_save_path, config.resume_ckpt) if config.resume_ckpt else None
+    if not os.path.isfile(config.resume_ckpt):
+        print("=> Checkpoint doesn't exist.")
+        config.resume_ckpt = None
 
     create_dir(config.data_path, recreate=False)
     create_dir(config.cache_path, recreate=False)

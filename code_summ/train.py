@@ -15,10 +15,8 @@ def train(config):
     
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
     ckpt_callback = ModelCheckpoint(monitor='val_bleu_score', dirpath=config.models_save_path, save_top_k=3)
-    resume_path = ckpt_callback.best_model_path if (config.resume_best_checkpoint and ckpt_callback.best_model_path != '') \
-                    else None
 
-    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=resume_path, callbacks=[ckpt_callback],
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=[ckpt_callback],
                 tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus)
     
     trainer.fit(model, datamodule=datamodule)
@@ -30,6 +28,9 @@ def select_model(config, datamodule):
     elif config.model == 'mbart':
         from models import MBartCode
         model = MBartCode(config, tokenizer=datamodule.tokenizer)
+    elif config.model == 'p_codebert':
+        from models import PretrainedCodeBERT
+        model = PretrainedCodeBERT(config, tokenizer=datamodule.tokenizer)
     else:
         raise NotImplementedError
 
@@ -41,6 +42,9 @@ def select_dataset(config, ttype):
     if config.dataset == 'codesearch':
         from dataset_scripts import CodeSearchNetMultimodalDataModule
         datamodule = CodeSearchNetMultimodalDataModule(config)
+    elif config.dataset == 'codebert_summ':
+        from dataset_scripts import CodeBertSummDataModule
+        datamodule = CodeBertSummDataModule(config)
     else:
         raise NotImplementedError
     

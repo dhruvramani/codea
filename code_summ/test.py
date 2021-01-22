@@ -15,7 +15,7 @@ def test(config):
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
     ckpt_callback = ModelCheckpoint(monitor='val_bleu_score', dirpath=config.models_save_path, save_top_k=3)
 
-    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=ckpt_callback.best_model_path, callbacks=[ckpt_callback],
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=[ckpt_callback],
                 tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus,
                 default_root_dir=config.models_save_path, weights_save_path=config.models_save_path)
     

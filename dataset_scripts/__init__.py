@@ -5,5 +5,6 @@ from dataset_scripts.bigcode import BigCodeDataModule
 from dataset_scripts.codesearch_uni import CodeSearchNetUnimodalDataModule
 from dataset_scripts.eth150 import ETH150DataModule
 
+from dataset_scripts.codebert_summ import CodeBertSummDataModule
 from dataset_scripts.codesearch_balanced import CodeSearchBalancedDataModule
 from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataModule
