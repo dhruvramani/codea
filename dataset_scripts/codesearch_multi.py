@@ -62,7 +62,7 @@ class CodeSearchNetMultimodalDataset(Dataset):
         code = row['code']
         
         code = utils.preprocess_code(self.config, code, nlines=False)
-        code = self.code_tokenizer(code, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
+        code = self.code_tokenizer(code, add_special_tokens=False, truncation=False, max_length=1024) #NOTE - maybe change acc to model
         
         if not self.code_only:
             docstring = row['docstring']
@@ -126,7 +126,7 @@ def download_dataset(config):
 
 if __name__ == '__main__':
     print("Testing codesearch_multi.py")
-    config = utils.get_test_config(model='p_codebert', dataset='codesearch')
+    config = utils.get_test_config(model='bart', dataset='codesearch')
 
     datamodule = CodeSearchNetMultimodalDataModule(config)
     datamodule.setup(stage='fit')

@@ -14,10 +14,10 @@ def train(config):
     model = select_model(config, datamodule)
     
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
-    ckpt_callback = ModelCheckpoint(monitor='val_bleu_score', dirpath=config.models_save_path, save_top_k=3)
+    #ckpt_callback = ModelCheckpoint(monitor='val_bleu_score', dirpath=config.models_save_path, save_top_k=3)
 
-    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=[ckpt_callback],
-                tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus)
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, num_sanity_val_steps=0, #callbacks=[ckpt_callback],
+                tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus, precision=config.precision)
     
     trainer.fit(model, datamodule=datamodule)
 
@@ -30,13 +30,14 @@ def select_model(config, datamodule):
         model = MBartCode(config, tokenizer=datamodule.tokenizer)
     elif config.model == 'p_codebert':
         from models import PretrainedCodeBERT
-        model = PretrainedCodeBERT(config, tokenizer=datamodule.tokenizer)
+        train_len = len(datamodule.train_dataloader())
+        model = PretrainedCodeBERT(config, train_len, tokenizer=datamodule.tokenizer)
     else:
         raise NotImplementedError
 
     return model
 
-def select_dataset(config, ttype):
+def select_dataset(config, ttype='fit'):
     sys.path.append(BASE_DIR)
     
     if config.dataset == 'codesearch':

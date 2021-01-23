@@ -1,3 +1,4 @@
+import os
 import torch
 import transformers
 import pytorch_lightning as pl
@@ -11,13 +12,16 @@ class GPT2Code(pl.LightningModule):
         super(GPT2Code, self).__init__()
 
         self.config = config
-        self.tokenizer = GPT2TokenizerFast.from_pretrained('gpt2') if tokenizer is None \
+        self.tokenizer = GPT2TokenizerFast.from_pretrained('distilgpt2') if tokenizer is None \
                          else tokenizer
-        self.model_config = GPT2Config() if model_config is None else model_config
+        eofbof_ids = torch.load(os.path.join(config.tokenizer_path, 'eofbof_ids.pt'))
+        self.model_config = GPT2Config.from_pretrained('distilgpt2') if model_config is None else model_config
+        self.model_config.eos_token_id = eofbof_ids[0]
+        self.model_config.bos_token_id = eofbof_ids[1]
 
         self.model = GPT2LMHeadModel
         # Loading works properly - see https://github.com/PyTorchLightning/pytorch-lightning/issues/3096#issuecomment-681065813
-        self.model = self.model.from_pretrained('gpt2', config=self.model_config)
+        self.model = self.model.from_pretrained('distilgpt2', config=self.model_config)
         self.model.resize_token_embeddings(len(self.tokenizer))
 
         self.metric = load_metric('rouge')
@@ -31,23 +35,21 @@ class GPT2Code(pl.LightningModule):
         outputs = [self.tokenizer.decode(gen_op, skip_special_tokens=True) for gen_op in gen_outputs]
         return outputs
 
-    def _step(self, batch, batch_idx):
-        input_ids = batch['input_ids']
-
-        outputs = self.model(**batch, labels=input_ids, return_dict=True) # See doc. for more info on Labels.
-        return outputs
-
     def training_step(self, train_batch, batch_idx):
-        outputs = self._step(train_batch, batch_idx)
-        loss = outputs['loss']
+        input_ids = train_batch['input_ids']
+        loss = self.model(**train_batch, labels=input_ids, return_dict=True)['loss'] 
+        # See doc. for more info on Labels.
         
         self.log('training_loss', loss)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        outputs = self._step(val_batch, batch_idx)
+        input_ids = val_batch['input_ids']
+        outputs = self.model(**val_batch, labels=input_ids, return_dict=True)
+        loss = outputs['loss']
+        logits = torch.argmax(outputs['logits'], dim=-1)
+        del outputs
 
-        loss, logits = outputs['loss'], outputs['logits']
         score = self.compute_metrics(logits, val_batch['input_ids'])
         score = {"val_" + key : score[key] for key in score}
         
@@ -55,8 +57,11 @@ class GPT2Code(pl.LightningModule):
         self.log_dict(score)
 
     def test_step(self, test_batch, batch_idx):
-        outputs = self._step(test_batch, batch_idx)
-        score = self.compute_metrics(outputs['logits'], test_batch['input_ids'])
+        input_ids = test_batch['input_ids']
+        logits = self.model(**test_batch, labels=input_ids, return_dict=True)['logits']
+        logits = torch.argmax(logits, dim=-1)
+
+        score = self.compute_metrics(logits, test_batch['input_ids'])
         score = {"test_" + key : score[key] for key in score}
 
         self.log_dict(score)
@@ -70,7 +75,7 @@ class GPT2Code(pl.LightningModule):
         optimizer = transformers.AdamW(optimizer_grouped_parameters, lr=learning_rate)
         return optimizer
 
-    def compute_metrics(pred_ids, label_ids):
+    def compute_metrics(self, pred_ids, label_ids):
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
         label_ids[label_ids == -100] = self.tokenizer.pad_token_id
         label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)

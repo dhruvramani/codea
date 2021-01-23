@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import DataCollatorWithPadding
 
-import dataset_scripts.utils as utils 
+import dataset_scripts.utils as utils
 from dataset_scripts.bigcode import BigCodeDataset
 from dataset_scripts.codesearch_uni import CodeSearchNetUnimodalDataset
 from dataset_scripts.eth150 import ETH150Dataset
@@ -49,7 +49,7 @@ class AllUnimodalDataset(IterableDataset):
         return cycle(self.stream())
 
 class AllUnimodalDataModule(pl.LightningDataModule):
-    def __init__(self, config, datasets=['bigcode', 'eth150']):
+    def __init__(self, config, datasets=['bigcode', 'eth150', 'codesearch']):
         super().__init__()
         assert set(datasets).issubset(DATASETS.keys())
 
@@ -74,17 +74,28 @@ class AllUnimodalDataModule(pl.LightningDataModule):
         if stage == 'fit' or stage == None:
             self.train_dataset = AllUnimodalDataset(self.config, self.datasets, self.tokenizer)
             # NOTE - uses multimodal dataset - change it later on.
+            config = self.config
+            config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, 'codesearch'))
+            config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, 'codesearch'))
             self.val_dataset = CodeSearchNetMultimodalDataset(self.config, [self.tokenizer], code_only=True, ttype='val')
 
         if stage == 'test' or stage == None:
+            config = self.config
+            config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, 'codesearch'))
+            config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, 'codesearch'))
             self.test_dataset = CodeSearchNetMultimodalDataset(self.config, [self.tokenizer], code_only=True, ttype='test')
 
 if __name__ == '__main__':
     print("Testing all_unimodal.py")
     config = utils.get_test_config(model='gpt2', dataset='all')
 
-    datamodule = AllUnimodalDataModule(config, datasets=['bigcode', 'eth150'])
+    datamodule = AllUnimodalDataModule(config, datasets=['bigcode', 'eth150', 'codesearch'])
     datamodule.setup(stage='fit')
     train_loader = datamodule.train_dataloader(batch_size=10)
-    print(next(iter(train_loader)))
+    for i, sample in enumerate(train_loader):
+        if i == 10:
+            break
+        op = [datamodule.tokenizer.decode([i]) for i in sample['input_ids'][0]]
+        print(op)
+    # print(next(iter(train_loader)))
     # print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])

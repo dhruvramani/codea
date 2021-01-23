@@ -17,6 +17,8 @@ from dataset_scripts.codesearch_multi import CodeSearchNetMultimodalDataset
 
 FILES = {'python': 'python_dedupe_definitions_v2.pkl', }
 
+# if stops - use this : https://github.com/msamogh/nonechucks
+
 class CodeSearchNetUnimodalDataset(Dataset):
     def __init__(self, config, tokenizer):
         self.config = config
@@ -34,6 +36,7 @@ class CodeSearchNetUnimodalDataset(Dataset):
         cache_contents = os.listdir(self.config.cache_path)
         
         if cache_contents != []:
+            print("D CS-Uni : Using cache.")
             self.len = torch.load(os.path.join(self.config.cache_path, 'len'))
         else:
             print("D CS-Uni : Creating cache.")
@@ -45,12 +48,12 @@ class CodeSearchNetUnimodalDataset(Dataset):
             torch.save(self.len, os.path.join(self.config.cache_path, 'len'))
             print("Total files : ", self.len // self.cache_len)
             j = 0
-            for i in range(112, self.len // self.cache_len):
+            for i in range(self.len // self.cache_len):
                 cached_features_file = os.path.join(self.config.cache_path, f'{i}.pt')
                 features = []
                 for k in range(i * self.cache_len, (i+1) * self.cache_len):
-                    func = self.process_data(data[k]['function'])
-                    features.extend(func)
+                    func = data[k]['function']
+                    features.append(func)
                 torch.save(features, cached_features_file)
                 print(i, " saved.")
                 j = i + 1
@@ -59,8 +62,8 @@ class CodeSearchNetUnimodalDataset(Dataset):
                 cached_features_file = os.path.join(self.config.cache_path, f'{j}.pt')
                 features = []
                 for k in range(j * self.cache_len, self.len):
-                    func = self.process_data(data[k]['function'])
-                    features.extend(func)
+                    func = data[k]['function']
+                    features.append(func)
                 torch.save(features, cached_features_file)
                 print(j)
 
@@ -77,13 +80,17 @@ class CodeSearchNetUnimodalDataset(Dataset):
             self.prev_cache_idx = cache_idx
 
         content = self.cache[idx % self.cache_len]
+        content = self.process_data(content)
         return content             
 
     def process_data(self, raw_data):
         func = utils.preprocess_code(self.config, raw_data, nlines=False)
-        tokenized_texts = self.tokenizer(func, add_special_tokens=False, truncation=False, max_length=utils.MAX_LENS[self.config.model])
-        tokenized_texts = utils.group_texts(tokenized_texts, block_size=utils.MAX_LENS[self.config.model])
-        return [{k: t[i] for k, t in tokenized_texts.items()} for i in range(len(tokenized_texts['input_ids']))]
+        tokenized_texts = self.tokenizer(func, add_special_tokens=False, truncation=True, max_length=utils.MAX_LENS[self.config.model])
+        return tokenized_texts
+        # tokenized_texts = utils.group_texts(tokenized_texts, block_size=utils.MAX_LENS[self.config.model]) 
+        # if len(tokenized_texts['input_ids']) > 1:
+        #     print("D CS-U : WARNING - missed (half?) data sample.")
+        # return {k: t[0] for k, t in tokenized_texts.items()} # change maybe
 
 class CodeSearchNetUnimodalDataModule(pl.LightningDataModule):
     def __init__(self, config):
@@ -126,10 +133,7 @@ if __name__ == '__main__':
 
     datamodule = CodeSearchNetUnimodalDataModule(config)
     datamodule.setup(stage='fit')
-    train_loader = datamodule.train_dataloader(batch_size=5)
+    train_loader = datamodule.train_dataloader(batch_size=10)
     print(next(iter(train_loader)))
-    val_loader = datamodule.val_dataloader(batch_size=5)
-    print(next(iter(train_loader)))
-    print(next(iter(val_loader)))
 
     # print([datamodule.tokenizer.decode(i) for i in next(iter(train_loader))['input_ids']])

@@ -39,7 +39,7 @@ class CodeBertSummDataset(Dataset):
         if cache_contents != []:
             self.len = torch.load(os.path.join(self.cache_dir, 'len'))
         else:
-            print("D CS-B - Creating cache.")
+            print("D CB-S - Creating cache.")
             examples = read_examples(os.path.join(self.config.data_path, self.files[ttype]))
 
             features = self.convert_examples_to_features(examples, stage=ttype)
@@ -69,7 +69,7 @@ class CodeBertSummDataset(Dataset):
             self.prev_cache_idx = cache_idx
 
         content = self.cache[idx % self.cache_len]
-        content = {'source_ids' : content.source_ids, 'target_ids': content.target_ids, 'source_mask': content.source_mask, 'target_mask': content.target_mask}
+        content = {'input_ids' : content.source_ids, 'label_ids': content.target_ids, 'attn_mask': content.source_mask, 'label_attn_mask': content.target_mask}
         return content  
 
     def convert_examples_to_features(self, examples, max_source_length=256, max_target_length=128, stage=None):
@@ -163,20 +163,22 @@ def preprocess_data(codesearch_path, dataset_path):
     
     train, valid, test = get_files(codesearch_path + 'train/'), get_files(codesearch_path + 'valid/'), get_files(codesearch_path + 'test/')
     train_data, valid_data, test_data = {}, {}, {}
-    
+
+    print("Reading data")
     for files, data in [[train, train_data], [valid, valid_data], [test, test_data]]:
         for file in files:
             f = pd.read_json(file, orient='records', compression='gzip', lines=True)
 
             for idx, js in f.iterrows():
-                data[js['url']] = js
+                data[js['url']] = js.to_json()
 
     for tag, data in [['train', train_data],['valid', valid_data],['test', test_data]]:
+        print(f'Writing {tag} data')
         with open('{}/{}.jsonl'.format(dataset_path, tag), 'w') as f, open("{}/{}.txt".format(dataset_path, tag)) as f1:
             for line in f1:
                 line = line.strip()
                 if line in data:
-                    f.write(json.dumps(data[line]) + '\n')
+                    f.write(data[line] + '\n')
 
 if __name__ == '__main__':
     data_dir = "/content/drive/My Drive/Startup/data_files/data/python/"

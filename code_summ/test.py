@@ -21,6 +21,14 @@ def test(config):
     
     trainer.test(model=model, datamodule=datamodule)
 
+def try_eg(config):
+    datamodule = select_dataset(config)
+    model = select_model(config, datamodule)
+
+    code = input("Enter input : ")
+    print(model(code))
+
 if __name__ == '__main__':
     config = get_config()
-    test(config)
+    #test(config)
+    try_eg(config)

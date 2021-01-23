@@ -1,3 +1,4 @@
+import os
 import torch
 import transformers
 import pytorch_lightning as pl
@@ -14,7 +15,8 @@ class TransXLCode(pl.LightningModule):
         self.tokenizer = TransfoXLTokenizer.from_pretrained('transfo-xl-wt103') if tokenizer is None \
                          else tokenizer
 
-        self.model_config = TransfoXLConfig(vocab_size=len(self.tokenizer), cutoffs=[])
+        eofbof_ids = torch.load(os.path.join(config.tokenizer_path, 'eofbof_ids.pt'))
+        self.model_config = TransfoXLConfig(vocab_size=len(self.tokenizer), cutoffs=[], eos_token_id=eofbof_ids[0])
         self.model = TransfoXLLMHeadModel(self.model_config)
         
         self.mems = None
@@ -67,7 +69,7 @@ class TransXLCode(pl.LightningModule):
         optimizer = transformers.AdamW(optimizer_grouped_parameters, lr=learning_rate)
         return optimizer
 
-    def compute_metrics(pred_ids, label_ids):
+    def compute_metrics(self, pred_ids, label_ids):
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
         label_ids[label_ids == -100] = self.tokenizer.pad_token_id
         label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)

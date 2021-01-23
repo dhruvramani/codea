@@ -29,6 +29,8 @@ def get_config():
     parser.add_argument('--tpu_cores', type=int, default=None)
     parser.add_argument('--gpus', type=int, default=None) #-1 for train on all GPUs
     parser.add_argument('--auto_select_gpus', type=str2bool, default=True)
+    parser.add_argument('--precision', type=int, default=32)
+    parser.add_argument('--accumulate_grad_batches', type=int, default=1)
 
     # NOTE - Lightning trainer args - not used yet - very handy tho, use later.
     parser.add_argument('--auto_scale_batch_size', type=str, default='binsearch')
@@ -41,9 +43,11 @@ def get_config():
     parser.add_argument('--models_save_path', type=str, default=os.path.join(SAVE_DIR, 'code_completion_models/'))
     parser.add_argument('--tensorboard_path', type=str, default=os.path.join(SAVE_DIR, 'code_completion_tensorboard/'))
 
+
     parser.add_argument('--n_epochs', type=int, default=8)    
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--max_seq_length', type=int, default=200)
+    parser.add_argument('--val_check_interval', type=int, default=200)
 
     config = parser.parse_args()
     if config.dataset != 'all':
@@ -53,7 +57,7 @@ def get_config():
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.resume_ckpt = os.path.join(config.models_save_path, config.resume_ckpt) if config.resume_ckpt else None
-    if not os.path.isfile(config.resume_ckpt):
+    if config.resume_ckpt is not None and not(os.path.isfile(config.resume_ckpt)):
         print("=> Checkpoint doesn't exist.")
         config.resume_ckpt = None
 

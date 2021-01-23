@@ -5,6 +5,7 @@ import glob
 import shutil
 import pickle
 import autopep8
+import torch
 import transformers
 
 from transformers import GPT2TokenizerFast
@@ -30,7 +31,7 @@ def preprocess_code(config, code_block, nlines=True):
         code_block = code_block.replace('    ', TAGS['tab']) 
         # ^ autopep8 replaces indentation w/ 4 spaces
 
-        code_block = re.sub(r'#.*', TAGS['comment'], code_block)
+        code_block = re.sub(r'#[\s\S]*?(?=\n(?!#).*|$)', TAGS['comment'], code_block) #captures multiline-single comments too
         code_block = re.sub(r'\n\"\"\".*?\"\"\"', TAGS['comment'], code_block, flags=re.DOTALL)
         code_block = re.sub(r'\n\'\'\'.*?\'\'\'', TAGS['comment'], code_block, flags=re.DOTALL)
         
@@ -47,8 +48,6 @@ def preprocess_code(config, code_block, nlines=True):
     code_block = eol_tag.join([line for line in code_block.split('\n') if line.strip()]) 
 
     bof_tag, eof_tag = SPECIAL_TAGS['bof'], SPECIAL_TAGS['eof']
-    if config.model == 'gpt2':
-        bof_tag, eof_tag = '', '<|endoftext|>'
     
     code_block = '{}{}{}'.format(bof_tag, code_block, eof_tag)
     return code_block
@@ -73,16 +72,16 @@ def get_tokenizer(config):
         try :
             vocab_file = os.path.join(config.tokenizer_path, 'vocab.json')
             merges_file = os.path.join(config.tokenizer_path, 'merges.txt')
-            # if config.model == 'gpt2':
-            #     tokenizer = GPT2TokenizerFast(vocab_file=vocab_file, merges_file=merges_file)
-            # else:
             tokenizer = RobertaTokenizer.from_pretrained(config.tokenizer_path)
         except:
             print("D UTILS : Creating new tokenizer.")
-            tokenizer = RobertaTokenizer.from_pretrained('mrm8488/CodeBERTaPy')
+            tokenizer = RobertaTokenizer.from_pretrained('mrm8488/CodeBERTaPy', eos_token=SPECIAL_TAGS['eof'], bos_token=SPECIAL_TAGS['bof'])
+            tokenizer.add_tokens(list(SPECIAL_TAGS.values()))
             tokenizer.add_tokens(list(TAGS.values()))
             tokenizer.add_tokens(list(PY_TAGS.keys()))
             tokenizer.save_pretrained(config.tokenizer_path)
+            eofbof_ids = tokenizer.convert_tokens_to_ids([SPECIAL_TAGS['eof'], SPECIAL_TAGS['bof']])
+            torch.save(eofbof_ids, f'{config.tokenizer_path}eofbof_ids.pt')
             
     elif config.prog_lang == 'javascript':
         tokenizer = AutoTokenizer.from_pretrained('mrm8488/codeBERTaJS')

@@ -27,6 +27,7 @@ def get_config():
     parser.add_argument('--tpu_cores', type=int, default=None)
     parser.add_argument('--gpus', type=int, default=None)
     parser.add_argument('--auto_select_gpus', type=str2bool, default=True)
+    parser.add_argument('--precision', type=int, default=32)
 
     # NOTE - Lightning trainer args - not used yet - very handy tho, use later.
     parser.add_argument('--auto_scale_batch_size', type=str, default='binsearch')
@@ -51,7 +52,7 @@ def get_config():
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.resume_ckpt = os.path.join(config.models_save_path, config.resume_ckpt) if config.resume_ckpt else None
-    if not os.path.isfile(config.resume_ckpt):
+    if config.resume_ckpt is not None and not(os.path.isfile(config.resume_ckpt)):
         print("=> Checkpoint doesn't exist.")
         config.resume_ckpt = None
 

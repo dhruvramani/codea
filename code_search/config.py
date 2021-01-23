@@ -53,7 +53,7 @@ def get_config():
     config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
     config.resume_ckpt = os.path.join(config.models_save_path, config.resume_ckpt) if config.resume_ckpt else None
-    if not os.path.isfile(config.resume_ckpt):
+    if config.resume_ckpt is not None and not(os.path.isfile(config.resume_ckpt)):
         print("=> Checkpoint doesn't exist.")
         config.resume_ckpt = None
 

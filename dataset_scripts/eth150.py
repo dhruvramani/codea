@@ -35,7 +35,7 @@ class ETH150Dataset(IterableDataset):
             with open(file_cache, 'wb') as f:
                 pickle.dump(self.files, f)
         else:
-            print("D ETH150 : Using cached file.")
+            print("D ETH150 : Using cache.")
             with open(file_cache, 'rb') as f:
                 self.files = pickle.load(f)
 

@@ -5,7 +5,7 @@ import transformers
 import pytorch_lightning as pl
 
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping
 
 from config import get_config, BASE_DIR
 
@@ -16,12 +16,14 @@ def train(config):
     model = select_model(config, datamodule)
     
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
-    ckpt_callback = ModelCheckpoint(monitor='val_rouge2_fmeasure', dirpath=config.models_save_path, save_top_k=3)
+    es_cback = EarlyStopping('val_rouge2_fmeasure')
+    sv_cback = CheckpointEveryNSteps(config.val_check_interval + 1, dirpath=config.models_save_path)
 
-    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=[ckpt_callback],
-                tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus)
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=[sv_cback, es_cback], precision=config.precision,
+                tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus, val_check_interval=config.val_check_interval)
     
     trainer.fit(model, datamodule=datamodule)
+    trainer.save_checkpoint(os.path.join(config.models_save_path, "model.ckpt"))
 
 def select_model(config, datamodule):
     if config.model == 'gpt2':
@@ -55,6 +57,23 @@ def select_dataset(config, ttype):
     
     datamodule.setup(stage=ttype)
     return datamodule
+
+class CheckpointEveryNSteps(pl.Callback):
+    """
+    Save a checkpoint every N steps, instead of Lightning's default that checkpoints
+    based on validation loss.
+    """
+
+    def __init__(self, save_step_frequency, dirpath, ckpt_name='model.ckpt'):
+        self.save_step_frequency = save_step_frequency
+        self.path = os.path.join(dirpath, ckpt_name)
+
+    def on_batch_end(self, trainer: pl.Trainer, _):
+        """ Check if we should save a checkpoint after every train batch """
+        epoch = trainer.current_epoch
+        global_step = trainer.global_step
+        if global_step % self.save_step_frequency == 0:
+            trainer.save_checkpoint(self.path)
 
 if __name__ == '__main__':
     config = get_config()
