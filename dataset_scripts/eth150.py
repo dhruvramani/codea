@@ -43,7 +43,7 @@ class ETH150Dataset(IterableDataset):
         for cfile in self.files:
             if not(os.path.exists(cfile) and os.path.isfile(cfile)):
                 continue
-            with open(cfile,'r') as f:
+            with open(cfile, 'r', encoding='latin-1') as f:
                 code = f.read()
 
             code = utils.preprocess_code(self.config, code, nlines=by_line)

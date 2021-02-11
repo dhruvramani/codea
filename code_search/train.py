@@ -11,7 +11,8 @@ from config import get_config, BASE_DIR
 
 def train(config):
     datamodule = select_dataset(config, 'fit')
-    model = select_model(config, datamodule)
+    total_steps = len(datamodule.train_dataloader(batch_size=config.batch_size)) // config.n_epochs
+    model = select_model(config, datamodule.tokenizer, total_steps)
     
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
     ckpt_callback = ModelCheckpoint(monitor='val_f1', dirpath=config.models_save_path, save_top_k=3) #saves checkpoints every epoch
@@ -21,11 +22,10 @@ def train(config):
     
     trainer.fit(model, datamodule=datamodule)
 
-def select_model(config, datamodule):
+def select_model(config, tokenizer, total_steps=None):
     if config.model == 'p_codebert':
         from models import PretrainedCodeBERT
-        total_steps = len(datamodule.train_dataloader(batch_size=config.batch_size)) // config.n_epochs
-        model = PretrainedCodeBERT(config, total_steps, tokenizer=datamodule.tokenizer)
+        model = PretrainedCodeBERT(config, total_steps, tokenizer=tokenizer)
     else:
         raise NotImplementedError
 

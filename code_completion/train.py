@@ -13,25 +13,28 @@ from config import get_config, BASE_DIR
 
 def train(config):
     datamodule = select_dataset(config, 'fit')
-    model = select_model(config, datamodule)
+    model = select_model(config, datamodule.tokenizer)
     
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
-    es_cback = EarlyStopping('val_rouge2_fmeasure')
-    sv_cback = CheckpointEveryNSteps(config.val_check_interval + 1, dirpath=config.models_save_path)
-
-    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=[sv_cback, es_cback], precision=config.precision,
+    sv_cback = CheckpointEveryNSteps(config.val_check_interval + 1, config.models_save_path, ckpt_name="model.ckpt")
+    callbacks = [sv_cback]
+    if config.early_stopping:
+        es_cback = EarlyStopping('val_rouge2_fmeasure')
+        callbacks.append(es_cback)
+        
+    trainer = pl.Trainer(logger=logger, resume_from_checkpoint=config.resume_ckpt, callbacks=callbacks, precision=config.precision, limit_val_batches=100,
                 tpu_cores=config.tpu_cores, gpus=config.gpus, auto_select_gpus=config.auto_select_gpus, val_check_interval=config.val_check_interval)
     
     trainer.fit(model, datamodule=datamodule)
     trainer.save_checkpoint(os.path.join(config.models_save_path, "model.ckpt"))
 
-def select_model(config, datamodule):
+def select_model(config, tokenizer):
     if config.model == 'gpt2':
         from models import GPT2Code
-        model = GPT2Code(config, tokenizer=datamodule.tokenizer)
+        model = GPT2Code(config, tokenizer=tokenizer)
     elif config.model == 'transfoxl':
         from models import TransXLCode
-        model = TransXLCode(config, tokenizer=datamodule.tokenizer)
+        model = TransXLCode(config, tokenizer=tokenizer)
     else:
         raise NotImplementedError
 

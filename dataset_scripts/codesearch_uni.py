@@ -46,7 +46,7 @@ class CodeSearchNetUnimodalDataset(Dataset):
             self.len = len(data)
 
             torch.save(self.len, os.path.join(self.config.cache_path, 'len'))
-            print("Total files : ", self.len // self.cache_len)
+            print(f'Data len : {self.len} - Total files : {self.len // self.cache_len}')
             j = 0
             for i in range(self.len // self.cache_len):
                 cached_features_file = os.path.join(self.config.cache_path, f'{i}.pt')
@@ -105,15 +105,15 @@ class CodeSearchNetUnimodalDataModule(pl.LightningDataModule):
 
     def train_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.train_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer)) 
+        return DataLoader(self.train_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer), shuffle=True) 
 
     def val_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.val_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer))
+        return DataLoader(self.val_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer), shuffle=True)
 
     def test_dataloader(self, batch_size=None):
         batch_size = self.config.batch_size if batch_size is None else batch_size
-        return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer))
+        return DataLoader(self.test_dataset, batch_size=batch_size, collate_fn=DataCollatorWithPadding(self.tokenizer), shuffle=True)
 
     # def prepare_data(self):
     #     download_dataset(self.config)

@@ -10,7 +10,7 @@ from train import select_dataset, select_model
 
 def test(config):
     datamodule = select_dataset(config, 'test')
-    model = select_model(config, datamodule)
+    model = select_model(config, datamodule.tokenizer)
 
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
     ckpt_callback = ModelCheckpoint(monitor='val_bleu_score', dirpath=config.models_save_path, save_top_k=3)
@@ -23,7 +23,7 @@ def test(config):
 
 def try_eg(config):
     datamodule = select_dataset(config)
-    model = select_model(config, datamodule)
+    model = select_model(config, datamodule.tokenizer)
 
     code = input("Enter input : ")
     print(model(code))

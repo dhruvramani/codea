@@ -68,6 +68,9 @@ def group_texts(tokenized_texts, block_size):
 
 def get_tokenizer(config):
     # REFER for model changing - https://github.com/huggingface/tokenizers/issues/247#issuecomment-675458087
+    if 'codebert' in config.model:
+        return RobertaTokenizer.from_pretrained('microsoft/codebert-base')
+
     if config.prog_lang == 'python':
         try :
             vocab_file = os.path.join(config.tokenizer_path, 'vocab.json')

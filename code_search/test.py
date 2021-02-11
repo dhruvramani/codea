@@ -1,3 +1,4 @@
+import sys
 import torch
 import transformers 
 import pytorch_lightning as pl
@@ -5,12 +6,12 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from config import get_config
+from config import BASE_DIR, get_config
 from train import select_dataset, select_model
 
 def test(config):
     datamodule = select_dataset(config, 'test')
-    model = select_model(config, datamodule)
+    model = select_model(config, datamodule.tokenizer)
 
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
     ckpt_callback = ModelCheckpoint(monitor='val_rouge2_fmeasure', dirpath=config.models_save_path, save_top_k=3)
@@ -21,6 +22,21 @@ def test(config):
     
     trainer.test(model=model, datamodule=datamodule)
 
+def try_eg(config):
+    sys.path.append(BASE_DIR)
+    from dataset_scripts import get_tokenizer
+
+    tokenizer = get_tokenizer(config)
+    model = select_model(config, tokenizer)
+
+    code = input("Enter code: ")
+    query = input("Enter query: ")
+    acc = model(query, code) 
+    print("Accuracy: ", acc)
+    print("Labels: [0, 1]")
+
+
 if __name__ == '__main__':
     config = get_config()
-    test(config)
+    # test(config)
+    try_eg(config)

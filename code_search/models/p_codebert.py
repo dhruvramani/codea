@@ -26,7 +26,8 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.f1 = pl.metrics.F1(num_classes=self.num_labels)
                 
     def forward(self, nl_text, code):
-        encoded_input = self.tokenizer(nl_text, code)
+        finp = '<CODESPLIT>'.join((nl_text, code))
+        encoded_input = self.tokenizer(finp, return_tensors='pt')
         outputs = self.model(**encoded_input)
         results = torch.softmax(outputs.logits, dim=1).tolist()
         return results

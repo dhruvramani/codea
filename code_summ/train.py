@@ -11,7 +11,8 @@ from config import get_config, BASE_DIR
 
 def train(config):
     datamodule = select_dataset(config, 'fit')
-    model = select_model(config, datamodule)
+    train_len = len(datamodule.train_dataloader())
+    model = select_model(config, datamodule.tokenizer, train_len)
     
     logger = TensorBoardLogger(save_dir=config.tensorboard_path, name=config.exp_name)
     #ckpt_callback = ModelCheckpoint(monitor='val_bleu_score', dirpath=config.models_save_path, save_top_k=3)
@@ -21,17 +22,16 @@ def train(config):
     
     trainer.fit(model, datamodule=datamodule)
 
-def select_model(config, datamodule):
+def select_model(config, tokenizer, train_len=0):
     if config.model == 'bart':
         from models import BartCode
-        model = BartCode(config, tokenizer=datamodule.tokenizer)
+        model = BartCode(config, tokenizer=tokenizer)
     elif config.model == 'mbart':
         from models import MBartCode
-        model = MBartCode(config, tokenizer=datamodule.tokenizer)
+        model = MBartCode(config, tokenizer=tokenizer)
     elif config.model == 'p_codebert':
         from models import PretrainedCodeBERT
-        train_len = len(datamodule.train_dataloader())
-        model = PretrainedCodeBERT(config, train_len, tokenizer=datamodule.tokenizer)
+        model = PretrainedCodeBERT(config, train_len, tokenizer=tokenizer)
     else:
         raise NotImplementedError
 

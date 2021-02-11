@@ -1,3 +1,5 @@
+from dataset_scripts.utils import get_tokenizer
+
 from dataset_scripts.pretrain_datamod import PretrainDataModule
 from dataset_scripts.all_unimodal import AllUnimodalDataModule
 

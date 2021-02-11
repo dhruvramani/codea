@@ -24,6 +24,7 @@ def get_config():
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
     parser.add_argument('--resume_ckpt', type=str, default=None)
+    parser.add_argument('--early_stopping', type=str2bool, default=True)
 
     # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)
