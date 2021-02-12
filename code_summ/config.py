@@ -12,16 +12,16 @@ SAVE_DIR  = "/content/drive/My Drive/Startup/save/"
 
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
-def get_config():
+def get_config(def_model='p_codebert', def_plang='python', checkpoint=None):
     parser = argparse.ArgumentParser("Code Summarization - Model Independent Config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
-    parser.add_argument('--model', type=str.lower, default='p_codebert', choices=['bart', 'mbart', 'p_codebert'])
-    parser.add_argument('--prog_lang', type=str.lower, default='python', choices=['python', 'java', 'javascript', 'c'])
+    parser.add_argument('--model', type=str.lower, default=def_model, choices=['bart', 'mbart', 'p_codebert'])
+    parser.add_argument('--prog_lang', type=str.lower, default=def_plang, choices=['python', 'java', 'javascript', 'c'])
     parser.add_argument('--dataset', type=str.lower, default='codebert_summ', choices=['codesearch', 'codebert_summ'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
-    parser.add_argument('--resume_ckpt', type=str, default=None)
+    parser.add_argument('--resume_ckpt', type=str, default=checkpoint)
 
     # NOTE - See lightning docs.
     parser.add_argument('--tpu_cores', type=int, default=None)

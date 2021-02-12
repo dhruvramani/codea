@@ -8,7 +8,7 @@ from transformers import RobertaConfig, RobertaTokenizer, RobertaForSequenceClas
 ''' SOURCE https://github.com/microsoft/CodeBERT/blob/master/codesearch/run_classifier.py '''
 
 class PretrainedCodeBERT(pl.LightningModule):
-    def __init__(self, config, total_steps, model_config=None, tokenizer=None):
+    def __init__(self, config, total_steps, tokenizer=None, model_config=None):
         super(PretrainedCodeBERT, self).__init__()
 
         self.config = config
@@ -26,8 +26,9 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.f1 = pl.metrics.F1(num_classes=self.num_labels)
                 
     def forward(self, nl_text, code):
-        finp = '<CODESPLIT>'.join((nl_text, code))
-        encoded_input = self.tokenizer(finp, return_tensors='pt')
+        assert type(nl_text) is list and type(code) is list
+        f_inp = ['</s>'.join((nl, c)) for c in code for nl in nl_text]
+        encoded_input = self.tokenizer.batch_encode_plus(f_inp, padding=True, return_tensors='pt')
         outputs = self.model(**encoded_input)
         results = torch.softmax(outputs.logits, dim=1).tolist()
         return results

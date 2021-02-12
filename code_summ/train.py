@@ -34,6 +34,10 @@ def select_model(config, tokenizer, train_len=0):
         model = PretrainedCodeBERT(config, train_len, tokenizer=tokenizer)
     else:
         raise NotImplementedError
+    
+    if config.resume_ckpt is not None:
+        checkpoint = torch.load(config.resume_ckpt, map_location=lambda storage, loc: storage)
+        model.load_state_dict(checkpoint['state_dict'])
 
     return model
 

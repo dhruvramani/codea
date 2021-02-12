@@ -13,17 +13,17 @@ SAVE_DIR  = "/content/drive/My Drive/Startup/save/"
 
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
-def get_config():
+def get_config(def_model='gpt2', def_plang='python', checkpoint=None):
     parser = argparse.ArgumentParser("Code Completion - Model Independent Config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
-    parser.add_argument('--model', type=str.lower, default='gpt2', choices=['gpt2', 'transfoxl', 'prophetnet']) 
+    parser.add_argument('--model', type=str.lower, default=def_model, choices=['gpt2', 'transfoxl', 'prophetnet']) 
     # NOTE - ^ change it to transformers model names
-    parser.add_argument('--prog_lang', type=str.lower, default='python', choices=['python', 'java', 'javascript', 'c'])
+    parser.add_argument('--prog_lang', type=str.lower, default=def_plang, choices=['python', 'java', 'javascript', 'c'])
     parser.add_argument('--dataset', type=str.lower, default='eth150', choices=['bigcode', 'codesearch', 'all', 'eth150'])
     parser.add_argument('--exp_name', type=str, default='v0.0')
 
-    parser.add_argument('--resume_ckpt', type=str, default=None)
+    parser.add_argument('--resume_ckpt', type=str, default=checkpoint)
     parser.add_argument('--early_stopping', type=str2bool, default=True)
 
     # NOTE - See lightning docs.
