@@ -7,7 +7,6 @@ import urllib.request
 from pathlib import Path
 
 import torch
-import datasets
 import transformers
 import pytorch_lightning as pl
 

@@ -3,7 +3,6 @@ import torch
 import transformers 
 import pytorch_lightning as pl
 
-from datasets import load_metric
 from torch.nn import functional as F
 from transformers import RobertaConfig, RobertaTokenizer, RobertaModel
 
@@ -23,7 +22,7 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.tokenizer = RobertaTokenizer.from_pretrained('microsoft/codebert-base', do_lower_case=True) if tokenizer is None \
                          else tokenizer
 
-        encoder = RobertaModel.from_pretrained('microsoft/codebert-base', config=self.model_config)
+        encoder = RobertaModel(config=self.model_config) # .from_pretrained('microsoft/codebert-base', self.model_config)
         decoder_layer = torch.nn.TransformerDecoderLayer(d_model=self.model_config.hidden_size, nhead=self.model_config.num_attention_heads)
         decoder = torch.nn.TransformerDecoder(decoder_layer, num_layers=6)
         self.model = Seq2Seq(encoder=encoder, decoder=decoder, config=self.model_config, beam_size=10, \
@@ -33,8 +32,8 @@ class PretrainedCodeBERT(pl.LightningModule):
         pretrained_path = 'code_summ_models/'.join([config.models_save_path.split("code_summ_models/")[0], 'pytorch_model.bin'])
         self.model.load_state_dict(torch.load(pretrained_path, map_location=device), strict=False)
 
-        self.metric1 = load_metric('bleu')
-        self.metric2 = load_metric('rouge')
+        self.metric1 = None
+        self.metric2 = None
                 
     def forward(self, code):
         # Source : https://github.com/graykode/ai-docstring/blob/master/server/server.ipynb
@@ -103,6 +102,11 @@ class PretrainedCodeBERT(pl.LightningModule):
         loss.backward()
 
     def compute_metrics(pred_ids, label_ids):
+        from datasets import load_metric
+
+        self.metric1 = load_metric('bleu') if self.metric1 is None else self.metric1
+        self.metric2 = load_metric('rouge') if self.metric2 is None else self.metric2
+
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
         label_ids[label_ids == -100] = self.tokenizer.pad_token_id
         label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)

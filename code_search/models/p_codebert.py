@@ -20,7 +20,9 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.tokenizer = RobertaTokenizer.from_pretrained('microsoft/codebert-base') if tokenizer is None \
                          else tokenizer
 
-        self.model = RobertaForSequenceClassification.from_pretrained('microsoft/codebert-base', config=self.model_config)
+        self.model = RobertaForSequenceClassification
+        self.model = self.model.from_pretrained('microsoft/codebert-base', config=self.model_config) if self.config.resume_ckpt is None\
+                        else self.model(config=self.model_config)
 
         self.acc = pl.metrics.Accuracy()
         self.f1 = pl.metrics.F1(num_classes=self.num_labels)

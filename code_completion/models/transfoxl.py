@@ -3,7 +3,6 @@ import torch
 import transformers
 import pytorch_lightning as pl
 
-from datasets import load_metric
 from torch.nn import functional as F
 from transformers import TransfoXLConfig, TransfoXLTokenizer, TransfoXLLMHeadModel
 
@@ -17,10 +16,12 @@ class TransXLCode(pl.LightningModule):
 
         eofbof_ids = torch.load(os.path.join(config.tokenizer_path, 'eofbof_ids.pt'))
         self.model_config = TransfoXLConfig(vocab_size=len(self.tokenizer), cutoffs=[], eos_token_id=eofbof_ids[0])
-        self.model = TransfoXLLMHeadModel(self.model_config)
+        self.model = TransfoXLLMHeadModel
+        self.model = self.model.from_pretrained('transfo-xl-wt103', config=self.model_config) if self.config.resume_ckpt is None\
+                        else self.model(config=self.model_config)
         
         self.mems = None
-        self.metric = load_metric('rouge')
+        self.metric = None
 
     def forward(self, input_code, num_suggestions=5, num_beams=5, max_length=50):
         input_ids = self.tokenizer(input_code) # TODO - try out Top-K sampling [https://huggingface.co/blog/how-to-generate]
@@ -70,6 +71,10 @@ class TransXLCode(pl.LightningModule):
         return optimizer
 
     def compute_metrics(self, pred_ids, label_ids):
+        from datasets import load_metric
+
+        self.metric = load_metric('rouge') if self.metric is None else self.metric
+        
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
         label_ids[label_ids == -100] = self.tokenizer.pad_token_id
         label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)

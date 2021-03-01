@@ -3,7 +3,6 @@ import transformers
 import pytorch_lightning as pl
 from torch.nn import functional as F
 
-from datasets import load_metric
 from transformers.models.bart.modeling_bart import shift_tokens_right
 from transformers import BartConfig, BartTokenizer, BartForConditionalGeneration
 
@@ -20,8 +19,8 @@ class BartCode(pl.LightningModule):
         self.model = self.model.from_pretrained('facebook/bart-base', config=self.model_config)
         self.model.resize_token_embeddings(len(self.tokenizer))
 
-        self.metric1 = load_metric('bleu')
-        self.metric2 = load_metric('rouge')
+        self.metric1 = None
+        self.metric2 = None
 
     def forward(self, input_code, num_beams=5, max_length=50):
         input_ids = self.tokenizer(input_code)
@@ -77,6 +76,11 @@ class BartCode(pl.LightningModule):
         return optimizer
 
     def compute_metrics(pred_ids, label_ids):
+        from datasets import load_metric
+
+        self.metric1 = load_metric('bleu') if self.metric1 is None else self.metric1
+        self.metric2 = load_metric('rouge') if self.metric2 is None else self.metric2
+
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
         label_ids[label_ids == -100] = self.tokenizer.pad_token_id
         label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)

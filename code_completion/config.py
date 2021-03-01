@@ -13,7 +13,9 @@ SAVE_DIR  = "/content/drive/My Drive/Startup/save/"
 
 TIME_STAMP = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
-def get_config(def_model='gpt2', def_plang='python', checkpoint=None):
+def get_config(def_model='gpt2', def_plang='python', checkpoint=None,\
+                save_dir=None, grdive=True):
+    save_dir = save_dir if save_dir is not None else SAVE_DIR
     parser = argparse.ArgumentParser("Code Completion - Model Independent Config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
@@ -41,8 +43,8 @@ def get_config(def_model='gpt2', def_plang='python', checkpoint=None):
     parser.add_argument('--data_path', type=str, default=os.path.join(DATA_DIR, 'data/'))
     parser.add_argument('--cache_path', type=str, default=os.path.join(DATA_DIR, 'cache/'))
     parser.add_argument('--tokenizer_path', type=str, default=os.path.join(DATA_DIR, 'cache/'))
-    parser.add_argument('--models_save_path', type=str, default=os.path.join(SAVE_DIR, 'code_completion_models/'))
-    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(SAVE_DIR, 'code_completion_tensorboard/'))
+    parser.add_argument('--models_save_path', type=str, default=os.path.join(save_dir, 'code_completion_models/'))
+    parser.add_argument('--tensorboard_path', type=str, default=os.path.join(save_dir, 'code_completion_tensorboard/'))
 
 
     parser.add_argument('--n_epochs', type=int, default=8)    
@@ -51,22 +53,25 @@ def get_config(def_model='gpt2', def_plang='python', checkpoint=None):
     parser.add_argument('--val_check_interval', type=int, default=200)
 
     config = parser.parse_args()
-    if config.dataset != 'all':
-        config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
-        config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
-    config.tokenizer_path = os.path.join(config.tokenizer_path, '{}/tokenizer/'.format(config.prog_lang))
-    config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
-    config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
+    if grdive == True:
+        if config.dataset != 'all':
+            config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+            config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
+        config.tokenizer_path = os.path.join(config.tokenizer_path, '{}/tokenizer/'.format(config.prog_lang))
+        config.models_save_path = os.path.join(config.models_save_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
+        config.tensorboard_path = os.path.join(config.tensorboard_path, '{}/{}_{}/{}/'.format(config.prog_lang, config.model, config.dataset, config.exp_name)) 
+    
     config.resume_ckpt = os.path.join(config.models_save_path, config.resume_ckpt) if config.resume_ckpt else None
     if config.resume_ckpt is not None and not(os.path.isfile(config.resume_ckpt)):
         print("=> Checkpoint doesn't exist.")
         config.resume_ckpt = None
 
-    create_dir(config.data_path, recreate=False)
-    create_dir(config.cache_path, recreate=False)
-    create_dir(config.tokenizer_path, recreate=False)
-    create_dir(config.models_save_path, recreate=False)
-    create_dir(config.tensorboard_path, recreate=False)
+    if grdive == True:
+        create_dir(config.data_path, recreate=False)
+        create_dir(config.cache_path, recreate=False)
+        create_dir(config.tokenizer_path, recreate=False)
+        create_dir(config.models_save_path, recreate=False)
+        create_dir(config.tensorboard_path, recreate=False)
 
     return config
 
