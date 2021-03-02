@@ -27,13 +27,16 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.acc = pl.metrics.Accuracy()
         self.f1 = pl.metrics.F1(num_classes=self.num_labels)
                 
-    def forward(self, nl_text, code):
+    def forward(self, input_ids, attention_mask):
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
+        results = torch.softmax(outputs.logits, dim=1).tolist()
+        return results
+
+    def infer(self, nl_text, code):
         assert type(nl_text) is list and type(code) is list
         f_inp = ['</s>'.join((nl, c)) for c in code for nl in nl_text]
         encoded_input = self.tokenizer.batch_encode_plus(f_inp, padding=True, return_tensors='pt')
-        outputs = self.model(**encoded_input)
-        results = torch.softmax(outputs.logits, dim=1).tolist()
-        return results
+        return self.forward(encoded_input['input_ids'], encoded_input['attention_mask'])
 
     def _step(self, batch, batch_idx):
         inputs = {'input_ids': batch['input_ids'],

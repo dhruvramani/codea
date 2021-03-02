@@ -41,9 +41,13 @@ class MBartCode(pl.LightningModule):
         self.current_train = choice.lower()
         self.current_model = switches[self.current_train]
 
-    def forward(self, input_code, num_beams=5, max_length=50):
+    def forward(self, input_ids, num_beams=5, max_length=50):
+        summary_id = self.multi_bart.generate(input_ids, num_beams=num_beams, max_length=max_length, early_stopping=True)
+        return summary_id
+
+    def infer(self, input_code):
         input_id = self.code_tokenizer(input_code)
-        summary_id = self.multi_bart.generate(input_id, num_beams=num_beams, max_length=max_length, early_stopping=True)
+        summary_id = self.forward(input_id)
         output = self.eng_tokenizer.decode(summary_id, skip_special_tokens=True)
         return output
 

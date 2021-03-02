@@ -24,6 +24,7 @@ def test(config):
 def try_eg(config):
     datamodule = select_dataset(config)
     model = select_model(config, datamodule.tokenizer)
+    model.eval()
 
     code = input("Enter input : ")
     print(model(code))

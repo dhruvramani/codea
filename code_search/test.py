@@ -28,13 +28,14 @@ def try_eg(config):
 
     tokenizer = get_tokenizer(config)
     model = select_model(config, tokenizer)
+    model.eval()
 
     code1 = input("Enter code 1: ")
     code2 = input("Enter code 2: ")
     query = input("Enter query: ")
     acc = model([query], [code1, code2]) 
-    print("Accuracy: ", acc)
     print("Labels: [0, 1]")
+    print("Accuracy: ", acc)
 
 
 if __name__ == '__main__':

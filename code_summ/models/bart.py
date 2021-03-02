@@ -22,10 +22,14 @@ class BartCode(pl.LightningModule):
         self.metric1 = None
         self.metric2 = None
 
-    def forward(self, input_code, num_beams=5, max_length=50):
-        input_ids = self.tokenizer(input_code)
-        summary_ids = self.model.generate(input_ids, num_beams=num_beams, max_length=max_length, early_stopping=True)
-        output = self.tokenizer.decode(summary_ids, skip_special_tokens=True)
+    def forward(self, input_ids, num_beams=5, max_length=50):
+        summary_id = self.model.generate(input_ids, num_beams=num_beams, max_length=max_length, early_stopping=True)
+        return summary
+
+    def infer(self, input_code):
+        input_id = self.code_tokenizer(input_code)
+        summary_id = self.forward(input_id)
+        output = self.eng_tokenizer.decode(summary_id, skip_special_tokens=True)
         return output
 
     def _step(self, batch, batch_idx):

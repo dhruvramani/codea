@@ -35,10 +35,15 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.metric1 = None
         self.metric2 = None
                 
-    def forward(self, code):
+    def forward(self, input_ids, attention_mask):
+        preds = self.model(source_ids=input_ids, source_mask=attention_mask)
+        return preds
+
+    def infer(self, code):
         # Source : https://github.com/graykode/ai-docstring/blob/master/server/server.ipynb
         enc_input = self.tokenizer(code, return_tensors='pt')
-        preds = self.model(source_ids=enc_input['input_ids'], source_mask=enc_input['attention_mask'])
+        preds = self.forward(enc_input['input_ids'], enc_input['attention_mask'])
+
         p = []
         for pred in preds:
             t = pred[0].cpu().numpy()
