@@ -12,15 +12,10 @@ def infer(nl_text, code, onnx_model, tokenizer):
 
 def run_model(model, input_ids, attention_mask):
     ort_inputs = {'input_ids': input_ids, 'attention_mask': attention_mask} 
-    # OR ort_inputs = {model.get_inputs()[0].name: input_ids ...}
-
     ort_outs = model.run(None, ort_inputs)
     return ort_outs[0]
 
 def get_model(path):
-    onnx_model = onnx.load(path)
-    onnx.checker.check_model(onnx_model)
-
     onnx_model = onnxruntime.InferenceSession(path)
 
     return onnx_model

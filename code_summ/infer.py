@@ -20,7 +20,7 @@ def infer(code, onnx_model, tokenizer):
 
 def run_model(model, input_ids, attention_mask):
     ort_inputs = {'input_ids': input_ids, 'attention_mask': attention_mask} 
-    # OR ort_inputs = {model.get_inputs()[0].name: input_ids ...}
+    # ort_inputs = {model.get_inputs()[0].name: input_ids, model.get_inputs()[1].name: attention_mask} 
 
     ort_outs = model.run(None, ort_inputs)
     return ort_outs[0]

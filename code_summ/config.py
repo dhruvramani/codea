@@ -46,7 +46,7 @@ def get_config(def_model='p_codebert', def_plang='python', checkpoint=None,\
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--max_seq_length', type=int, default=200)
 
-    config = parser.parse_args()
+    config, _ = parser.parse_known_args()
     if gdrive == True:
         if config.dataset != 'all':
             config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))

@@ -27,7 +27,7 @@ def try_eg(config):
     model.eval()
 
     code = input("Enter input : ")
-    print(model(code))
+    print(model.infer(code))
 
 if __name__ == '__main__':
     config = get_config()
