@@ -4,11 +4,6 @@ import re
 import glob
 import shutil
 import pickle
-import torch
-import transformers
-
-from transformers import GPT2TokenizerFast
-from transformers import AutoTokenizer, RobertaTokenizer
 
 MAX_LENS = {'gpt2': 1024, 'transfoxl': 1024}
 
@@ -67,12 +62,18 @@ def group_texts(tokenized_texts, block_size):
     }
     return result
 
-def get_tokenizer(config):
+def get_tokenizer(config=None, model=None):
     # REFER for model changing - https://github.com/huggingface/tokenizers/issues/247#issuecomment-675458087
-    if 'codebert' in config.model:
+    model = model if model else config.model 
+    if 'codebert' in model:
+        from transformers import RobertaTokenizer
         return RobertaTokenizer.from_pretrained('microsoft/codebert-base')
 
+    assert config is not None
     if config.prog_lang == 'python':
+        import torch
+        from transformers import RobertaTokenizer
+
         try :
             vocab_file = os.path.join(config.tokenizer_path, 'vocab.json')
             merges_file = os.path.join(config.tokenizer_path, 'merges.txt')
@@ -88,6 +89,8 @@ def get_tokenizer(config):
             torch.save(eofbof_ids, f'{config.tokenizer_path}eofbof_ids.pt')
             
     elif config.prog_lang == 'javascript':
+        from transformers import AutoTokenizer
+        
         tokenizer = AutoTokenizer.from_pretrained('mrm8488/codeBERTaJS')
 
     return tokenizer
@@ -139,23 +142,3 @@ def change_subdir_sys(path):
         print(dest)
 
     drive.flush_and_unmount()
-
-'''
-def index_file(path, cache_path):
-    offsets = [0]
-    cache_path = cache_path + "-index.pkl"
-    
-    if not os.path.isfile(cache_path):
-        with open(path, 'rb') as f:
-            while len(f.readline()) != 0:
-                offsets.append(f.tell())
-
-        del offsets[-1]
-        with open(cache_path, 'wb') as f:
-            pickle.dump(offsets, f)
-    else:
-        with open(cache_path, 'rb') as f:
-            offsets = pickle.load(f)
-    
-    return offsets, len(offsets)
-'''

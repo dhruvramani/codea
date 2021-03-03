@@ -31,8 +31,8 @@ class TransXLCode(pl.LightningModule):
         return gen_outputs
 
     def infer(self, input_code):
-        input_ids = self.tokenizer(input_code) 
-        gen_outputs = self.forward(input_ids)
+        tokens = self.tokenizer(input_code) 
+        gen_outputs = self.forward(tokens['input_ids'])
         outputs = [self.tokenizer.decode(gen_op, skip_special_tokens=True) for gen_op in gen_outputs]
         return outputs
 
