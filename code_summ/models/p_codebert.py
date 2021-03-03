@@ -30,6 +30,7 @@ class PretrainedCodeBERT(pl.LightningModule):
         
         # pretrained model link : https://drive.google.com/uc?id=1YrkwfM-0VBCJaa9NYaXUQPODdGPsmQY4
         pretrained_path = 'code_summ_models/'.join([config.models_save_path.split("code_summ_models/")[0], 'pytorch_model.bin'])
+        print(pretrained_path)
         self.model.load_state_dict(torch.load(pretrained_path, map_location=device), strict=False)
 
         self.metric1 = None

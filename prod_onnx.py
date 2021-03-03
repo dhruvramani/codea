@@ -23,10 +23,13 @@ def get_config(def_module='code_search', def_model='p_codebert', checkpoint=None
 
     config = parser.parse_args()
     
-    ckpt_name = config.ckpt_file.split('/')[-1].split('.')[0]
+    #config.ckpt_file = "epoch=7-step=206087.ckpt" # NOTE - REMOVE & CHANGE NAME
+    ckpt_name = config.ckpt_file.split('.')[0] if config.ckpt_file else None
+    
+    config.onnx_save_path = os.path.join(config.onnx_save_path, f'{config.module}/')
+    create_dir(config.onnx_save_path, recreate=False)
     config.onnx_save_path = os.path.join(config.onnx_save_path, '{}-{}-{}.onnx'.format(config.module, config.model, ckpt_name))
 
-    create_dir(config.onnx_save_path, recreate=False)
     return config
 
 def onnx_main():
@@ -43,7 +46,9 @@ def convert_to_onnx(config):
 
     torch.onnx.export(model, input_sample, f=config.onnx_save_path, export_params=True,\
             input_names=input_names, output_names=output_names, dynamic_axes=dynamic_axes,\
-            do_constant_folding=True, enable_onnx_checker=True)
+            do_constant_folding=True, enable_onnx_checker=True, opset_version=11)
+    
+    print("Converted to Onnx @ ", config.onnx_save_path)
 
 def quantize_onnx(config):
     import onnx
@@ -57,7 +62,7 @@ def quantize_onnx(config):
     onnx.save_model(quantized_model, quant_model_path)
     config.onnx_save_path = quant_model_path
 
-    print("Optimized @", config.onnx_save_path)
+    print("Optimized @ ", config.onnx_save_path)
 
 def optimize_onnx(config):
     from onnxruntime import InferenceSession, SessionOptions
@@ -75,14 +80,17 @@ def get_model_tokenizer(onnx_config):
     from dataset_scripts import get_tokenizer
 
     if onnx_config.module == 'code_search':
+        sys.path.append(os.path.expanduser('./code_search'))
         from code_search.config import get_config
         from code_search.train import select_model
 
     elif onnx_config.module == 'code_summ':
+        sys.path.append(os.path.expanduser('./code_summ'))
         from code_summ.config import get_config
         from code_summ.train import select_model
     
     elif onnx_config.module == 'code_completion':
+        sys.path.append(os.path.expanduser('./code_completion'))
         from code_completion.config import get_config
         from code_completion.train import select_model
     else:
@@ -90,15 +98,16 @@ def get_model_tokenizer(onnx_config):
 
     model_config = get_config(def_model=onnx_config.model, checkpoint=onnx_config.ckpt_file)
     tokenizer = get_tokenizer(model_config)
-    model = select_model(config, tokenizer)
+    model = select_model(model_config, tokenizer)
     model.eval()
 
+    print("Model loaded from ", model_config.resume_ckpt)
     return model, tokenizer
 
 def get_input_config(model, tokenizer):
     tokens = tokenizer("This is a sample output", return_tensors='pt')
     seq_len = tokens['input_ids'].shape[-1]
-    outputs = model(tokens)
+    outputs = model(tokens['input_ids'], tokens['attention_mask'])
 
     if not isinstance(outputs, (list, tuple)):
         outputs = (outputs,)
@@ -114,7 +123,7 @@ def get_input_config(model, tokenizer):
             outputs_flat.append(output)
 
     output_names = [f"output_{i}" for i in range(len(outputs_flat))]
-    output_dynamic_axes = {k: build_shape_dict(k, v, False, seq_len) for k, v in zip(output_names, outputs_flat)}
+    output_dynamic_axes = {k: _build_shape_dict(k, v, False, seq_len) for k, v in zip(output_names, outputs_flat)}
 
     # Create the aggregated axes representation
     dynamic_axes = dict(input_dynamic_axes, **output_dynamic_axes)

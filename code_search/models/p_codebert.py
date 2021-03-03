@@ -29,14 +29,15 @@ class PretrainedCodeBERT(pl.LightningModule):
                 
     def forward(self, input_ids, attention_mask):
         outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
-        results = torch.softmax(outputs.logits, dim=1).tolist()
+        results = torch.softmax(outputs.logits, dim=1)
         return results
 
     def infer(self, nl_text, code):
         assert type(nl_text) is list and type(code) is list
         f_inp = ['</s>'.join((nl, c)) for c in code for nl in nl_text]
         encoded_input = self.tokenizer.batch_encode_plus(f_inp, padding=True, return_tensors='pt')
-        return self.forward(encoded_input['input_ids'], encoded_input['attention_mask'])
+        sft_logits = self.forward(encoded_input['input_ids'], encoded_input['attention_mask'])
+        return sft_logits.tolist()
 
     def _step(self, batch, batch_idx):
         inputs = {'input_ids': batch['input_ids'],

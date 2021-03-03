@@ -53,7 +53,7 @@ def get_config(def_model='gpt2', def_plang='python', checkpoint=None,\
     parser.add_argument('--val_check_interval', type=int, default=200)
 
     config = parser.parse_args()
-    if grdive == True:
+    if gdrive == True:
         if config.dataset != 'all':
             config.data_path = os.path.join(config.data_path, '{}/{}/'.format(config.prog_lang, config.dataset))
             config.cache_path = os.path.join(config.cache_path, '{}/{}/'.format(config.prog_lang, config.dataset))
@@ -66,7 +66,7 @@ def get_config(def_model='gpt2', def_plang='python', checkpoint=None,\
         print("=> Checkpoint doesn't exist.")
         config.resume_ckpt = None
 
-    if grdive == True:
+    if gdrive == True:
         create_dir(config.data_path, recreate=False)
         create_dir(config.cache_path, recreate=False)
         create_dir(config.tokenizer_path, recreate=False)
