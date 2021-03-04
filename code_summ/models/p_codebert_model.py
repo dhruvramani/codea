@@ -66,8 +66,6 @@ class Seq2Seq(torch.nn.Module):
             outputs = output_onnx(self.encoder.run(None, ort_inputs))
         else:    
             outputs = self.encoder(source_ids, attention_mask=source_mask)
-            print("\n\nsource_ids ", source_ids.shape)
-            print("outputs ", outputs[0].shape)
         
         # @dhruvramani : output[-1] returns the hidden states while output[0] returns the sequence output.
         encoder_output = outputs[0].permute([1,0,2]).contiguous()
@@ -124,20 +122,11 @@ class Seq2Seq(torch.nn.Module):
                             out = self.lsm(output_onnx(self.lm_head.run(None, ort_inputs))).data
 
                         else:
-                            print("input_ids ", input_ids.shape)
                             tgt_embeddings = self.encoder(input_ids)
-                            # print("encoder_output ", tgt_embeddings.shape)
-                            tgt_embeddings = tgt_embeddings[-1][0]
-                            print("tgt_embeddings - from enc op", tgt_embeddings.shape)
-                            tgt_embeddings = tgt_embeddings.permute([1,0,2]).contiguous()
-                            print("tgt_embeddings - permuted ", tgt_embeddings.shape)
-                            print("context, attn_mask, context_mask.bool ", context.shape, attn_mask.shape, (1-context_mask).bool().shape)
-                            out = self.decoder(tgt_embeddings,context,tgt_mask=attn_mask,memory_key_padding_mask=(1-context_mask).bool())
-                            print("decoder_out ", out.shape)
-                            out = self.dense(out)
-                            print("dense_out ", out.shape)
-                            out = torch.tanh(out)
-                            hidden_states=out.permute([1,0,2]).contiguous()[:,-1,:]
+                            tgt_embeddings = tgt_embeddings[-1][0].permute([1,0,2]).contiguous()
+                            out = self.decoder(tgt_embeddings, context, tgt_mask=attn_mask, memory_key_padding_mask=(1-context_mask).bool())
+                            out = torch.tanh(self.dense(out))
+                            hidden_states=out.permute([1, 0, 2]).contiguous()[:,-1,:]
                             # change
                             print("hidden_states ", hidden_states.shape)
                             out = self.lm_head(hidden_states)
