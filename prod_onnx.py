@@ -9,7 +9,7 @@ SAVE_DIR  = "/content/drive/My Drive/Startup/save/"
 
 from code_summ.config import create_dir, str2bool
 
-def get_config(def_module='code_search', def_model='p_codebert', checkpoint=None, save_dir=None):
+def get_config(def_module='code_summ', def_model='p_codebert', checkpoint=None, save_dir=None):
     save_dir = save_dir if save_dir is not None else SAVE_DIR
     parser = argparse.ArgumentParser("Onnx - Module Independent Config.",
                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -104,6 +104,8 @@ def get_model_tokenizer(onnx_config):
     model_config = get_config(def_model=onnx_config.model, checkpoint=onnx_config.ckpt_file)
     tokenizer = get_tokenizer(model_config)
     model = select_model(model_config, tokenizer)
+    if onnx_config.module == 'code_summ':
+        model = model.model.encoder
     model.eval()
 
     print("Model loaded from ", model_config.resume_ckpt)

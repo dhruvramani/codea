@@ -24,13 +24,13 @@ def train(config):
 
 def select_model(config, tokenizer=None, train_len=0):
     if config.model == 'bart':
-        from models import BartCode
+        from models.bart import BartCode
         model = BartCode(config, tokenizer=tokenizer)
     elif config.model == 'mbart':
-        from models import MBartCode
+        from models.mbart import MBartCode
         model = MBartCode(config, tokenizer=tokenizer)
     elif config.model == 'p_codebert':
-        from models import PretrainedCodeBERT
+        from  models.p_codebert import PretrainedCodeBERT
         model = PretrainedCodeBERT(config, train_len, tokenizer=tokenizer)
     else:
         raise NotImplementedError

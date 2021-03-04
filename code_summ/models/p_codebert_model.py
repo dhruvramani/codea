@@ -1,5 +1,6 @@
 import copy
 import torch
+import numpy as np
 
 tt = torch.cuda if torch.cuda.is_available() else torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -10,7 +11,7 @@ def input_onnx(ort_inputs):
     return {k: v.cpu().detach().numpy() for k, v in ort_inputs.items()}
 
 def output_onnx(output):
-    return torch.from_numpy(ort_inputs).to(device)
+    return torch.from_numpy(output).to(device)
 
 class Seq2Seq(torch.nn.Module):
     """
@@ -46,9 +47,7 @@ class Seq2Seq(torch.nn.Module):
     def _tie_or_clone_weights(self, first_module, second_module):
         """ Tie or clone module weights depending of weither we are using TorchScript or not
         """
-        if self.onnx:
-            pass # assumes pretrained model, already tied up
-        elif self.config.torchscript:
+        if self.config.torchscript:
             first_module.weight = torch.nn.Parameter(second_module.weight.clone())
         else:
             first_module.weight = second_module.weight
@@ -57,18 +56,19 @@ class Seq2Seq(torch.nn.Module):
         """ Make sure we are sharing the input and output embeddings.
             Export to TorchScript can't handle parameter sharing so we are cloning them instead.
         """
-        self._tie_or_clone_weights(self.lm_head,
+        if not self.onnx:
+            self._tie_or_clone_weights(self.lm_head,
                                    self.encoder.embeddings.word_embeddings)        
         
     def forward(self, source_ids=None, source_mask=None, target_ids=None, target_mask=None, args=None): 
         if self.onnx:
             ort_inputs = input_onnx({'input_ids': source_ids, 'attention_mask': source_mask})
-            outputs = output_onnx(self.encoder.run(None, ort_inputs))
+            output = output_onnx(self.encoder.run(None, ort_inputs)[0])
         else:    
-            outputs = self.encoder(source_ids, attention_mask=source_mask)
+            output = self.encoder(source_ids, attention_mask=source_mask)[0]
         
         # @dhruvramani : output[-1] returns the hidden states while output[0] returns the sequence output.
-        encoder_output = outputs[0].permute([1,0,2]).contiguous()
+        encoder_output = output.permute([1,0,2]).contiguous()
 
         if target_ids is not None:  
             assert onnx == False
@@ -106,29 +106,33 @@ class Seq2Seq(torch.nn.Module):
                         attn_mask = -1e4 *(1 - self.bias[:input_ids.shape[1],:input_ids.shape[1]])
                         # https://github.com/huggingface/transformers/issues/2072 - change this from here
                         if self.onnx:
-                            ort_inputs = input_onnx({'input_ids': input_ids, 'attention_mask': None})
-                            outputs = output_onnx(self.encoder.run(None, ort_inputs))
-                            tgt_embeddings = outputs[-1][0].permute([1,0,2]).contiguous()
+                            ort_inputs = input_onnx({'input_ids': input_ids, 'attention_mask': torch.ones_like(input_ids)})
+                            # print(input_ids)
+                            tgt_embeddings = output_onnx(self.encoder.run(None, ort_inputs)[-1])
+                            # print(tgt_embeddings.shape)
+                            tgt_embeddings = tgt_embeddings.permute([1,0,2]).contiguous()
 
-                            ort_inputs = input_onnx({'tgt': tgt_embeddings, 'memory': context, 'tgt_mask': attn_mask, 'memory_key_padding_mask': (1-context_mask).bool()})
-                            out = output_onnx(self.decoder.run(None, ort_inputs))
+                            ort_inputs = input_onnx({'tgt': tgt_embeddings, 'memory': context, 'tgt_mask': attn_mask, 'memory_key_padding_mask': (1-context_mask).bool()}) 
+                            out = output_onnx(self.decoder.run(None, ort_inputs)[0])
                             
                             ort_inputs = input_onnx({'input': out})
-                            out = torch.tanh(output_onnx(self.dense.run(None, ort_inputs)))
+                            out = torch.tanh(output_onnx(self.dense.run(None, ort_inputs)[0]))
 
                             hidden_states = out.permute([1,0,2]).contiguous()[:,-1,:]
 
                             ort_inputs = input_onnx({'input': hidden_states})
-                            out = self.lsm(output_onnx(self.lm_head.run(None, ort_inputs))).data
+                            out = self.lsm(output_onnx(self.lm_head.run(None, ort_inputs)[0])).data
 
                         else:
                             tgt_embeddings = self.encoder(input_ids)
                             tgt_embeddings = tgt_embeddings[-1][0].permute([1,0,2]).contiguous()
+                            print("attn_mask ", attn_mask.shape)
+                            print("context ", (1-context_mask).bool().shape)
                             out = self.decoder(tgt_embeddings, context, tgt_mask=attn_mask, memory_key_padding_mask=(1-context_mask).bool())
                             out = torch.tanh(self.dense(out))
                             hidden_states=out.permute([1, 0, 2]).contiguous()[:,-1,:]
-                            # change
                             out = self.lsm(self.lm_head(hidden_states)).data
+
                         
                         beam.advance(out)
                         input_ids.data.copy_(input_ids.data.index_select(0, beam.getCurrentOrigin()))

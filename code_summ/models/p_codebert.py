@@ -25,7 +25,7 @@ class PretrainedCodeBERT(pl.LightningModule):
         decoder_layer = torch.nn.TransformerDecoderLayer(d_model=self.model_config.hidden_size, nhead=self.model_config.num_attention_heads)
         decoder = torch.nn.TransformerDecoder(decoder_layer, num_layers=6)
         self.model = Seq2Seq(encoder=encoder, decoder=decoder, config=self.model_config, beam_size=10, \
-            max_length=128, sos_id=self.tokenizer.cls_token_id, eos_id=self.tokenizer.sep_token_id)
+            max_length=128, sos_id=self.tokenizer.cls_token_id, eos_id=self.tokenizer.sep_token_id) 
         
         # pretrained model link : https://drive.google.com/uc?id=1YrkwfM-0VBCJaa9NYaXUQPODdGPsmQY4
         # pretrained_path = 'code_summ_models/'.join([config.models_save_path.split("code_summ_models/")[0], 'pytorch_model.bin'])

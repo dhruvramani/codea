@@ -3,7 +3,8 @@ import onnxruntime
 
 def infer(code, onnx_model, tokenizer):
     enc_input = tokenizer(code, return_tensors='pt')
-    preds = run_model(onnx_model, inputs_onnx['input_ids'], inputs_onnx['attention_mask'])
+    # print(enc_input['input_ids'], enc_input['attention_mask'])
+    preds = run_model(onnx_model, enc_input['input_ids'], enc_input['attention_mask'])
     p = []
     for pred in preds:
         t = pred[0].cpu().numpy()
@@ -22,7 +23,7 @@ def run_model(model, input_ids, attention_mask):
 def get_model(encoder_path, decoder_path, dense_path, lm_path, tokenizer):
     # onnx_model = onnx.load(path)
     # onnx.checker.check_model(onnx_model)
-    from models import Seq2Seq
+    from models.p_codebert_model import Seq2Seq
     from transformers import RobertaConfig
 
     encoder = onnxruntime.InferenceSession(encoder_path)
@@ -64,11 +65,11 @@ def convert_p_codebert_onnx(ckpt_dir):
 
 
     decoder_path = ckpt_dir + 'p_codebert-summ-decoder.onnx'
-    decoder_inputs = (torch.rand(1, 10, 768), torch.rand(seq_len, 10, 768), torch.rand(1, 1), torch.rand(10, seq_len))
-    decoder_outputs = pl_model.model.decoder(decoder_inputs[0], decoder_inputs[1], tgt_mask=decoder_inputs[2], memory_key_padding_mask=decoder_inputs[3])
+    decoder_inputs = (torch.rand(1, 10, 768), torch.rand(seq_len, 10, 768), torch.rand(1, 1), torch.rand(10, seq_len).bool())
+    decoder_outputs = pl_model.model.decoder(decoder_inputs[0], decoder_inputs[1], decoder_inputs[2], decoder_inputs[3])
     decoder_input_names = ['tgt', 'memory', 'tgt_mask', 'memory_key_padding_mask']
     decoder_output_names = ['output_0']
-    decoder_dynamic_axes = {'tgt': {0: 'batch_size'}, 'output_0': {0: 'batch_size'}, 'memory': {0: 'seq_len', 1: 'batch_size'}, 'memory_key_padding_mask' : {1: 'seq_len'}}
+    decoder_dynamic_axes = {'tgt': {0: 'batch_size'}, 'output_0': {0: 'batch_size'}, 'memory': {0: 'seq_len', 1: 'batch_size'}, 'memory_key_padding_mask' : {1: 'seq_len'}, 'tgt_mask': {0: 'sth', 1: 'sth1'}}
 
     torch.onnx.export(model=pl_model.model.decoder, args=decoder_inputs, f=decoder_path, input_names=decoder_input_names,
                   output_names=decoder_output_names, example_outputs=decoder_outputs, dynamic_axes=decoder_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)    
@@ -77,36 +78,37 @@ def convert_p_codebert_onnx(ckpt_dir):
 
 
 
-    dense_path = ckpt_dir + 'p_codebert-summ-dense.onnx'
-    dense_inputs = (torch.rand(1, 10, 768))
-    dense_outputs = pl_model.model.dense(dense_inputs[0])
-    dense_input_names = ['input']
-    dense_output_names = ['output_0']
-    dense_dynamic_axes = {'input': {0: 'batch_size'}, 'output_0': {0: 'batch_size'}}
+    # dense_path = ckpt_dir + 'p_codebert-summ-dense.onnx'
+    # dense_inputs = (torch.rand(1, 10, 768))
+    # dense_outputs = pl_model.model.dense(dense_inputs[0])
+    # dense_input_names = ['input']
+    # dense_output_names = ['output_0']
+    # dense_dynamic_axes = {'input': {0: 'batch_size'}, 'output_0': {0: 'batch_size'}}
 
-    torch.onnx.export(model=pl_model.model.dense, args=dense_inputs, f=dense_path, input_names=dense_input_names,
-                  output_names=dense_output_names, example_outputs=dense_outputs, dynamic_axes=dense_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)    
+    # torch.onnx.export(model=pl_model.model.dense, args=dense_inputs, f=dense_path, input_names=dense_input_names,
+    #               output_names=dense_output_names, example_outputs=dense_outputs, dynamic_axes=dense_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)    
 
-    print("Dense exported @ ", dense_path)
+    # print("Dense exported @ ", dense_path)
 
 
-    lm_head_path = ckpt_dir + 'p_codebert-summ-lm_head.onnx'
-    lm_head_inputs = (torch.rand(10, 768))
-    lm_head_outputs = pl_model.model.lm_head(lm_head_inputs[0])
-    lm_head_input_names = ['input']
-    lm_head_output_names = ['output_0']
-    lm_head_dynamic_axes = None
+    # lm_head_path = ckpt_dir + 'p_codebert-summ-lm_head.onnx'
+    # lm_head_inputs = (torch.rand(10, 768))
+    # lm_head_outputs = pl_model.model.lm_head(lm_head_inputs[0])
+    # lm_head_input_names = ['input']
+    # lm_head_output_names = ['output_0']
+    # lm_head_dynamic_axes = None
 
-    torch.onnx.export(model=pl_model.model.lm_head, args=lm_head_inputs, f=lm_head_path, input_names=lm_head_input_names,
-                  output_names=lm_head_output_names, example_outputs=lm_head_outputs, dynamic_axes=lm_head_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)
+    # torch.onnx.export(model=pl_model.model.lm_head, args=lm_head_inputs, f=lm_head_path, input_names=lm_head_input_names,
+    #               output_names=lm_head_output_names, example_outputs=lm_head_outputs, dynamic_axes=lm_head_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)
 
-    print("LM Head exported @ ", lm_head_path)
-    return [encoder_path, decoder_path, dense_path, lm_head_path]
+    # print("LM Head exported @ ", lm_head_path)
+    # return [encoder_path, decoder_path, dense_path, lm_head_path]
+    return [decoder_path]
 
 def optimize_quantize_models(path_list):
     import os, sys, argparse
 
-    sys.path.append(os.expanduser("../"))
+    sys.path.append("/content/drive/My Drive/Startup/code/")
     from prod_onnx import optimize_onnx, quantize_onnx
 
     for path in path_list:
