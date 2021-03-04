@@ -42,12 +42,12 @@ def onnx_main():
 
 def convert_to_onnx(config):
     model, tokenizer = get_model_tokenizer(config)
-    input_names, input_sample, output_names, dynamic_axes = get_input_config(model, tokenizer)
+    input_names, input_sample, output_sample, output_names, dynamic_axes = get_input_config(model, tokenizer)
 
     # print(input_names, input_sample, dynamic_axes)
     # # print(model)
     # _ = input(" foo ")
-    torch.onnx.export(model, input_sample, f=config.onnx_save_path, export_params=True,\
+    torch.onnx.export(model, input_sample, example_outputs=output_sample, f=config.onnx_save_path, export_params=True,\
             input_names=input_names, output_names=output_names, dynamic_axes=dynamic_axes,\
             do_constant_folding=True, enable_onnx_checker=True, opset_version=11, use_external_data_format=False)
     
@@ -91,6 +91,8 @@ def get_model_tokenizer(onnx_config):
         sys.path.append(os.path.expanduser('./code_summ'))
         from code_summ.config import get_config
         from code_summ.train import select_model
+        # print("code_summ module is no longer supported.\nCheck code_summ/infer -> convert_p_codebert_onnx()")
+        # sys.exit(-1)
     
     elif onnx_config.module == 'code_completion':
         sys.path.append(os.path.expanduser('./code_completion'))
@@ -137,7 +139,7 @@ def get_input_config(model, tokenizer):
 
     ordered_input_names, model_args = _order_input_args(model, tokens, input_vars)
     
-    return ordered_input_names, model_args, output_names, dynamic_axes
+    return ordered_input_names, model_args, outputs, output_names, dynamic_axes
 
 
 def _build_shape_dict(name, tensor, is_input, seq_len):

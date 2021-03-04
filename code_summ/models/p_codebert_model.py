@@ -128,11 +128,7 @@ class Seq2Seq(torch.nn.Module):
                             out = torch.tanh(self.dense(out))
                             hidden_states=out.permute([1, 0, 2]).contiguous()[:,-1,:]
                             # change
-                            print("hidden_states ", hidden_states.shape)
-                            out = self.lm_head(hidden_states)
-                            print("lm_out ", out.shape)
-                            out = self.lsm(out).data
-
+                            out = self.lsm(self.lm_head(hidden_states)).data
                         
                         beam.advance(out)
                         input_ids.data.copy_(input_ids.data.index_select(0, beam.getCurrentOrigin()))

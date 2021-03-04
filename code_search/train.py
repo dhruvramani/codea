@@ -22,7 +22,7 @@ def train(config):
     
     trainer.fit(model, datamodule=datamodule)
 
-def select_model(config, tokenizer, total_steps=None):
+def select_model(config, tokenizer=None, total_steps=None):
     if config.model == 'p_codebert':
         from models import PretrainedCodeBERT
         model = PretrainedCodeBERT(config, total_steps, tokenizer=tokenizer)

@@ -22,7 +22,7 @@ def train(config):
     
     trainer.fit(model, datamodule=datamodule)
 
-def select_model(config, tokenizer, train_len=0):
+def select_model(config, tokenizer=None, train_len=0):
     if config.model == 'bart':
         from models import BartCode
         model = BartCode(config, tokenizer=tokenizer)

@@ -39,20 +39,116 @@ def get_model(encoder_path, decoder_path, dense_path, lm_path, tokenizer):
     return onnx_model
 
 def convert_p_codebert_onnx(ckpt_dir):
-    
+    import torch
+    from config import get_config
+    from train import select_model
+
+    config = get_config(checkpoint='pretrained.ckpt')
+    pl_model = select_model(config)
+
+    tokens = pl_model.tokenizer("This is a sample output", return_tensors='pt')
+    seq_len = tokens['input_ids'].shape[-1]
 
 
-# Found input input_ids with shape: {0: 'batch', 1: 'sequence'}
-# Found input attention_mask with shape: {0: 'batch', 1: 'sequence'}
-# Found output output_0 with shape: {0: 'batch'}
-# preds is not present in the generated input list.
-# Generated inputs order: ['input_ids', 'attention_mask']
+    encoder_path = ckpt_dir + 'p_codebert-summ-encoder.onnx'
+    encoder_inputs = (tokens['input_ids'], tokens['attention_mask'])
+    encoder_outputs = pl_model.model.encoder(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
+    encoder_input_names = ['input_ids', 'attention_mask']
+    encoder_output_names = ['output_0', 'output_1', 'output_2']
+    encoder_dynamic_axes = {k : {0: 'batch_size', 1: 'seq_len'} for k in encoder_input_names + encoder_output_names}
 
-# tokenizer = BertTokenizerFast.from_pretrained("bert-base-cased")
-# cpu_model = create_model_for_provider("onnx/bert-base-cased.onnx", "CPUExecutionProvider")
+    torch.onnx.export(model=pl_model.model.encoder, args=encoder_inputs, f=encoder_path, input_names=encoder_input_names,
+                  output_names=encoder_output_names, example_outputs=encoder_outputs, dynamic_axes=encoder_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)
 
-# model_inputs = tokenizer("My name is Bert", return_tensors="pt")
-# inputs_onnx = {k: v.cpu().detach().numpy() for k, v in model_inputs.items()}
+    print("Encoder exported @ ", encoder_path)
 
-# # Run the model (None = get all the outputs)
-# sequence, pooled = cpu_model.run(None, inputs_onnx)
+
+    decoder_path = ckpt_dir + 'p_codebert-summ-decoder.onnx'
+    decoder_inputs = (torch.rand(1, 10, 768), torch.rand(seq_len, 10, 768), torch.rand(1, 1), torch.rand(10, seq_len))
+    decoder_outputs = pl_model.model.decoder(decoder_inputs[0], decoder_inputs[1], tgt_mask=decoder_inputs[2], memory_key_padding_mask=decoder_inputs[3])
+    decoder_input_names = ['tgt', 'memory', 'tgt_mask', 'memory_key_padding_mask']
+    decoder_output_names = ['output_0']
+    decoder_dynamic_axes = {'tgt': {0: 'batch_size'}, 'output_0': {0: 'batch_size'}, 'memory': {0: 'seq_len', 1: 'batch_size'}, 'memory_key_padding_mask' : {1: 'seq_len'}}
+
+    torch.onnx.export(model=pl_model.model.decoder, args=decoder_inputs, f=decoder_path, input_names=decoder_input_names,
+                  output_names=decoder_output_names, example_outputs=decoder_outputs, dynamic_axes=decoder_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)    
+
+    print("Decoder exported @ ", decoder_path)
+
+
+
+    dense_path = ckpt_dir + 'p_codebert-summ-dense.onnx'
+    dense_inputs = (torch.rand(1, 10, 768))
+    dense_outputs = pl_model.model.dense(dense_inputs[0])
+    dense_input_names = ['input']
+    dense_output_names = ['output_0']
+    dense_dynamic_axes = {'input': {0: 'batch_size'}, 'output_0': {0: 'batch_size'}}
+
+    torch.onnx.export(model=pl_model.model.dense, args=dense_inputs, f=dense_path, input_names=dense_input_names,
+                  output_names=dense_output_names, example_outputs=dense_outputs, dynamic_axes=dense_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)    
+
+    print("Dense exported @ ", dense_path)
+
+
+    lm_head_path = ckpt_dir + 'p_codebert-summ-lm_head.onnx'
+    lm_head_inputs = (torch.rand(10, 768))
+    lm_head_outputs = pl_model.model.lm_head(lm_head_inputs[0])
+    lm_head_input_names = ['input']
+    lm_head_output_names = ['output_0']
+    lm_head_dynamic_axes = None
+
+    torch.onnx.export(model=pl_model.model.lm_head, args=lm_head_inputs, f=lm_head_path, input_names=lm_head_input_names,
+                  output_names=lm_head_output_names, example_outputs=lm_head_outputs, dynamic_axes=lm_head_dynamic_axes, do_constant_folding=True, opset_version=11, use_external_data_format=False)
+
+    print("LM Head exported @ ", lm_head_path)
+    return [encoder_path, decoder_path, dense_path, lm_head_path]
+
+def optimize_quantize_models(path_list):
+    import os, sys, argparse
+
+    sys.path.append(os.expanduser("../"))
+    from prod_onnx import optimize_onnx, quantize_onnx
+
+    for path in path_list:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--onnx_save_path', type=str, default=path)
+        config, _ = parser.parse_known_args()
+
+        optimize_onnx(config)
+        quantize_onnx(config)
+
+if __name__ == '__main__':
+    ckpt_dir = "/content/drive/My Drive/Startup/save/onnx_models/code_summ/"
+    path_list = convert_p_codebert_onnx(ckpt_dir)
+    optimize_quantize_models(path_list)
+
+
+# tgt_embeddings - permuted  torch.Size([1, 10, 768])
+# context, attn_mask, context_mask.bool  torch.Size([24, 10, 768]) torch.Size([1, 1]) torch.Size([10, 24])
+# decoder_out  torch.Size([1, 10, 768])
+# dense_out  torch.Size([1, 10, 768])
+# hidden_states  torch.Size([10, 768])
+# lm_out  torch.Size([10, 50265])
+
+
+# source_ids  torch.Size([1, 24])
+# outputs  torch.Size([1, 24, 768])
+# input_ids  torch.Size([10, 1])
+# tgt_embeddings - from enc op torch.Size([10, 1, 768])
+# tgt_embeddings - permuted  torch.Size([1, 10, 768])
+# context, attn_mask, context_mask.bool  torch.Size([24, 10, 768]) torch.Size([1, 1]) torch.Size([10, 24])
+# decoder_out  torch.Size([1, 10, 768])
+# dense_out  torch.Size([1, 10, 768])
+# hidden_states  torch.Size([10, 768])
+# lm_out  torch.Size([10, 50265])
+
+# source_ids  torch.Size([1, 19])
+# outputs  torch.Size([1, 19, 768])
+# input_ids  torch.Size([10, 1])
+# tgt_embeddings - from enc op torch.Size([10, 1, 768])
+# tgt_embeddings - permuted  torch.Size([1, 10, 768])
+# context, attn_mask, context_mask.bool  torch.Size([19, 10, 768]) torch.Size([1, 1]) torch.Size([10, 19])
+# decoder_out  torch.Size([1, 10, 768])
+# dense_out  torch.Size([1, 10, 768])
+# hidden_states  torch.Size([10, 768])
+# lm_out  torch.Size([10, 50265])
