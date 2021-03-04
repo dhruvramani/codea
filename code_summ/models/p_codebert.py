@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 from transformers import RobertaConfig, RobertaTokenizer, RobertaModel
 
-from p_codebert_model import Seq2Seq, Beam
+from models.p_codebert_model import Seq2Seq, Beam
 
 ''' SOURCE https://github.com/microsoft/CodeBERT/blob/master/code2nl/run.py | model.py '''
 

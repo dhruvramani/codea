@@ -66,8 +66,8 @@ class Seq2Seq(torch.nn.Module):
             outputs = output_onnx(self.encoder.run(None, ort_inputs))
         else:    
             outputs = self.encoder(source_ids, attention_mask=source_mask)
-            print("source_ids ", source_ids.shape)
-            print("outputs ", outputs.shape)
+            print("\n\nsource_ids ", source_ids.shape)
+            print("outputs ", outputs[0].shape)
         
         # @dhruvramani : output[-1] returns the hidden states while output[0] returns the sequence output.
         encoder_output = outputs[0].permute([1,0,2]).contiguous()
@@ -125,8 +125,10 @@ class Seq2Seq(torch.nn.Module):
 
                         else:
                             print("input_ids ", input_ids.shape)
-                            tgt_embeddings = self.encoder.embeddings(input_ids)
-                            print("tgt_embeddings ", tgt_embeddings.shape)
+                            tgt_embeddings = self.encoder(input_ids)
+                            # print("encoder_output ", tgt_embeddings.shape)
+                            tgt_embeddings = tgt_embeddings[-1][0]
+                            print("tgt_embeddings - from enc op", tgt_embeddings.shape)
                             tgt_embeddings = tgt_embeddings.permute([1,0,2]).contiguous()
                             print("tgt_embeddings - permuted ", tgt_embeddings.shape)
                             print("context, attn_mask, context_mask.bool ", context.shape, attn_mask.shape, (1-context_mask).bool().shape)
