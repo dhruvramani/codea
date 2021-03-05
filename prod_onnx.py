@@ -88,11 +88,11 @@ def get_model_tokenizer(onnx_config):
         from code_search.train import select_model
 
     elif onnx_config.module == 'code_summ':
-        sys.path.append(os.path.expanduser('./code_summ'))
-        from code_summ.config import get_config
-        from code_summ.train import select_model
-        # print("code_summ module is no longer supported.\nCheck code_summ/infer -> convert_p_codebert_onnx()")
-        # sys.exit(-1)
+        # sys.path.append(os.path.expanduser('./code_summ'))
+        # from code_summ.config import get_config
+        # from code_summ.train import select_model
+        print("code_summ module is no longer supported.\nCheck code_summ/infer -> convert_p_codebert_onnx()")
+        sys.exit(-1)
     
     elif onnx_config.module == 'code_completion':
         sys.path.append(os.path.expanduser('./code_completion'))

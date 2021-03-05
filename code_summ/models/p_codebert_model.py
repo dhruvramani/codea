@@ -7,11 +7,21 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 ''' SOURCE https://github.com/microsoft/CodeBERT/blob/master/code2nl/model.py '''
 
-def input_onnx(ort_inputs):
-    return {k: v.cpu().detach().numpy() for k, v in ort_inputs.items()}
+def get_model(tokenizer, model_config=None, pretrained_path=''):
+    from transformers import RobertaConfig, RobertaModel
 
-def output_onnx(output):
-    return torch.from_numpy(output).to(device)
+    model_config = RobertaConfig.from_pretrained('microsoft/codebert-base') if model_config is None else model_config
+
+    encoder = RobertaModel(config=model_config)
+    decoder_layer = torch.nn.TransformerDecoderLayer(d_model=model_config.hidden_size, nhead=model_config.num_attention_heads)
+    decoder = torch.nn.TransformerDecoder(decoder_layer, num_layers=6)
+    model = Seq2Seq(encoder=encoder, decoder=decoder, config=model_config, beam_size=10, max_length=128,\
+     sos_id=tokenizer.cls_token_id, eos_id=tokenizer.sep_token_id) 
+
+    if pretrained_path != '':
+        #pretrained model link : https://drive.google.com/uc?id=1YrkwfM-0VBCJaa9NYaXUQPODdGPsmQY4
+        model.load_state_dict(torch.load(pretrained_path, map_location=device), strict=False)
+    return model
 
 class Seq2Seq(torch.nn.Module):
     """
@@ -107,9 +117,7 @@ class Seq2Seq(torch.nn.Module):
                         # https://github.com/huggingface/transformers/issues/2072 - change this from here
                         if self.onnx:
                             ort_inputs = input_onnx({'input_ids': input_ids, 'attention_mask': torch.ones_like(input_ids)})
-                            # print(input_ids)
                             tgt_embeddings = output_onnx(self.encoder.run(None, ort_inputs)[-1])
-                            # print(tgt_embeddings.shape)
                             tgt_embeddings = tgt_embeddings.permute([1,0,2]).contiguous()
 
                             ort_inputs = input_onnx({'tgt': tgt_embeddings, 'memory': context, 'tgt_mask': attn_mask, 'memory_key_padding_mask': (1-context_mask).bool()}) 
@@ -119,20 +127,16 @@ class Seq2Seq(torch.nn.Module):
                             out = torch.tanh(output_onnx(self.dense.run(None, ort_inputs)[0]))
 
                             hidden_states = out.permute([1,0,2]).contiguous()[:,-1,:]
-
                             ort_inputs = input_onnx({'input': hidden_states})
                             out = self.lsm(output_onnx(self.lm_head.run(None, ort_inputs)[0])).data
 
                         else:
-                            tgt_embeddings = self.encoder(input_ids)
-                            tgt_embeddings = tgt_embeddings[-1][0].permute([1,0,2]).contiguous()
-                            print("attn_mask ", attn_mask.shape)
-                            print("context ", (1-context_mask).bool().shape)
+                            tgt_embeddings =self.encoder.embeddings(input_ids)
+                            tgt_embeddings = tgt_embeddings.permute([1,0,2]).contiguous()
                             out = self.decoder(tgt_embeddings, context, tgt_mask=attn_mask, memory_key_padding_mask=(1-context_mask).bool())
                             out = torch.tanh(self.dense(out))
                             hidden_states=out.permute([1, 0, 2]).contiguous()[:,-1,:]
                             out = self.lsm(self.lm_head(hidden_states)).data
-
                         
                         beam.advance(out)
                         input_ids.data.copy_(input_ids.data.index_select(0, beam.getCurrentOrigin()))
@@ -254,3 +258,9 @@ class Beam(object):
                 tokens.append(tok)
             sentence.append(tokens)
         return sentence
+
+def input_onnx(ort_inputs):
+    return {k: v.cpu().detach().numpy() for k, v in ort_inputs.items()}
+
+def output_onnx(output):
+    return torch.from_numpy(output).to(device)

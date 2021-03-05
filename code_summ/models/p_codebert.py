@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 from transformers import RobertaConfig, RobertaTokenizer, RobertaModel
 
-from models.p_codebert_model import Seq2Seq, Beam
+from models.p_codebert_model import get_model
 
 ''' SOURCE https://github.com/microsoft/CodeBERT/blob/master/code2nl/run.py | model.py '''
 
@@ -16,21 +16,11 @@ class PretrainedCodeBERT(pl.LightningModule):
         self.config = config
         self.train_len = train_len
         self.model_config = RobertaConfig.from_pretrained('microsoft/codebert-base') if model_config is None else model_config
-        self.model_config.output_hidden_states = True
+        # self.model_config.output_hidden_states = True
 
         self.tokenizer = RobertaTokenizer.from_pretrained('microsoft/codebert-base', do_lower_case=True) if tokenizer is None \
                          else tokenizer
-
-        encoder = RobertaModel(config=self.model_config) # .from_pretrained('microsoft/codebert-base', self.model_config)
-        decoder_layer = torch.nn.TransformerDecoderLayer(d_model=self.model_config.hidden_size, nhead=self.model_config.num_attention_heads)
-        decoder = torch.nn.TransformerDecoder(decoder_layer, num_layers=6)
-        self.model = Seq2Seq(encoder=encoder, decoder=decoder, config=self.model_config, beam_size=10, \
-            max_length=128, sos_id=self.tokenizer.cls_token_id, eos_id=self.tokenizer.sep_token_id) 
-        
-        # pretrained model link : https://drive.google.com/uc?id=1YrkwfM-0VBCJaa9NYaXUQPODdGPsmQY4
-        # pretrained_path = 'code_summ_models/'.join([config.models_save_path.split("code_summ_models/")[0], 'pytorch_model.bin'])
-        # print(pretrained_path)
-        # self.model.load_state_dict(torch.load(pretrained_path, map_location=device), strict=False)
+        self.model = get_model(self.tokenizer, model_config=self.model_config)
 
         self.metric1 = None
         self.metric2 = None
