@@ -21,7 +21,7 @@ def _model(tokenizer, pretrained_path):
     return get_model(tokenizer, pretrained_path=pretrained_path)
 
 def run_model(model, input_ids, attention_mask):
-    preds = self.model(source_ids=input_ids, source_mask=attention_mask)
+    preds = model(source_ids=input_ids, source_mask=attention_mask)
     return preds
 
 # def run_model(model, input_ids, attention_mask):
