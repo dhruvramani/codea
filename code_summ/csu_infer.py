@@ -2,7 +2,7 @@ import onnx
 import onnxruntime
 
 def infer(code, model, tokenizer):
-    enc_input = tokenizer(code, return_tensors='pt')
+    enc_input = tokenizer(code, truncation=True, return_tensors='pt')
     # print(enc_input['input_ids'], enc_input['attention_mask'])
     preds = run_model(model, enc_input['input_ids'], enc_input['attention_mask'])
     p = []
